@@ -126,10 +126,9 @@ def group_tris(tris, cluster_size):
     return dual_adj, clusters
 
 
-def group_clusters(clusters, member_adjacencies, cluster_group_size):
+def group_clusters(clusters, member_adjacencies, num_clusters):
     # Group clusters based on graph partitioning (keep as many shared boundary edges as possible)
     weighted_adjacencies = create_dual_graph_clusters(member_adjacencies, clusters)
-    num_clusters = max(clusters) // cluster_group_size
     group_membership = partition_graph(num_clusters, weighted_adjacencies)
     return group_membership
 

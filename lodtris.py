@@ -24,16 +24,16 @@ class LODTrisViewer:
     def __init__(self, display_dim=(1920, 1080)):
         self.meshes = []
 
-        # profiler = Profile()
-        # profiler.enable()
+        profiler = Profile()
+        profiler.enable()
         self.models = {k: LODGraph(v[0]) for k, v in MODELS.items()}
-        # profiler.disable()
-        # profiler.dump_stats("profile.prof")
-        # subprocess.run(
-        #     ["gprof2dot", "-f", "pstats", "profile.prof", "-o", "call_graph.dot"]
-        # )
-        # subprocess.run(["dot", "-Tpng", "call_graph.dot", "-o", "call_graph.png"])
-        # sys.exit(0)
+        profiler.disable()
+        profiler.dump_stats("profile.prof")
+        subprocess.run(
+            ["gprof2dot", "-f", "pstats", "profile.prof", "-o", "call_graph.dot"]
+        )
+        subprocess.run(["dot", "-Tpng", "call_graph.dot", "-o", "call_graph.png"])
+        sys.exit(0)
 
         pygame.init()
         self.display_dim = display_dim
@@ -41,10 +41,10 @@ class LODTrisViewer:
         pygame.display.set_caption("LODtris 0.1")
         pygame.mouse.set_visible(False)
         pygame.event.set_grab(True)
-        
+
         self.cameraStartPos = [0, 0.5, -4]
         self.prevKeyState = None
-        self.dynamicLOD = True
+        self.dynamicLOD = False
         self.__init_opengl()
 
     def __init_opengl(self):
@@ -124,9 +124,9 @@ class LODTrisViewer:
         if keypress[pygame.K_a]:
             glTranslatef(-movement_speed, 0, 0)
 
-        glRotatef(mouse_move[0]*0.1, 0, 1, 0)
-        glRotatef(-mouse_move[1]*0.1, 1, 0, 0)
-        
+        glRotatef(mouse_move[0] * 0.1, 0, 1, 0)
+        glRotatef(-mouse_move[1] * 0.1, 1, 0, 0)
+
         # On keypress e toggle dynamic LOD
         if keypress[pygame.K_e] and not self.prevKeyState[pygame.K_e]:
             self.dynamicLOD = not self.dynamicLOD

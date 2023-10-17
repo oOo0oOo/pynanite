@@ -1,9 +1,5 @@
 from collections import defaultdict
 from functools import partial
-from pprint import pprint
-import subprocess
-import sys
-import time
 import multiprocessing as mp
 
 import numpy as np
@@ -17,8 +13,6 @@ from utils import (
     load_obj,
     minimum_bounding_sphere,
     simplify_mesh_inside,
-    visualize_adjacencies,
-    visualize_adjacency_dict,
 )
 
 
@@ -43,40 +37,18 @@ class LODGraph:
             f"LOD 0 has {len(self.lods[-1][1])} tris and {clusters_remaining} clusters."
         )
 
-        # Simplify the graph until we cannot create more than 2 groups of 8 clusters
-        while clusters_remaining > 16:
+        # Simplify the graph until we have a single cluster remaining
+        while clusters_remaining > 1:
             self.lods.append(next_lod(self.lods[-1], parallel=False))
             clusters_remaining = max(self.lods[-1][3]) + 1
             print(
                 f"LOD {len(self.lods) - 1} has {len(self.lods[-1][1])} tris and {clusters_remaining} clusters."
             )
 
-        # One last mesh simplification for the last node
-        last_vertices, last_tris, __, last_clusters, __, __ = self.lods[-1]
-        simplified_vertices, simplified_faces = simplify_mesh_inside(
-            last_vertices, last_tris
-        )
-        geometric_error = calc_geometric_error(simplified_vertices, last_vertices)
-
-        self.lods.append(
-            [
-                simplified_vertices,
-                simplified_faces,
-                None,
-                np.zeros(len(simplified_faces), dtype=int),
-                [
-                    np.array([0]) for i in range(max(last_clusters) + 1)
-                ],  # All last clusters are connected to the last node
-                [geometric_error for i in range(max(last_clusters) + 1)],
-            ]
-        )
-
         # Create the cluster DAG
         cluster_dag = []
         cluster_verts = [[]]
         cluster_errors = [0]
-        # cluster_bounding_spheres = [((0, 0), 0)]
-
         num_clusters = 1  # ! Attention, this is dependent on having a single sink node
         for lod in self.lods:
             vertices, tris, __, clusters, graph_adjacencies, geometric = lod
@@ -94,12 +66,11 @@ class LODGraph:
             for i in range(max(clusters) + 1):
                 verts = vertices[cluster_map[i]].reshape(-1, 3)
                 cluster_verts.append(verts)
-                # cluster_bounding_spheres.append(calc_bounding_sphere(verts))
 
             num_current_clusters = max(clusters) + 1
             num_clusters += num_current_clusters
 
-        cluster_dag.append([])
+        cluster_dag.append([])  # Root node (least detailed)
 
         # Create the reverse DAG
         cluster_dag_rev = defaultdict(list)
@@ -109,30 +80,26 @@ class LODGraph:
 
         self.cluster_dag_rev = [cluster_dag_rev[i] for i in range(num_clusters)]
 
-        # Make sure parent bounding spheres contain children (monotonic)
+        # Enforce monotonic cluster error and monotonic increasing bounding spheres (parent fully contains children)
         cluster_bounding_spheres = [((0, 0), 0)]
+        monotonic_error = [0]
         for i in range(1, num_clusters):
             sphere = calc_bounding_sphere(cluster_verts[i])
+            error = cluster_errors[i]
             children = cluster_dag_rev[i]
             if children[0] != 0:
                 all_spheres = [sphere]
                 all_spheres += [cluster_bounding_spheres[j] for j in children]
                 new_sphere = minimum_bounding_sphere(all_spheres)
                 sphere = new_sphere
-            cluster_bounding_spheres.append(sphere)
 
-        # Enforce monotonic cluster error
-        monotonic_error = [0]
-        for i in range(1, num_clusters):
-            error = cluster_errors[i]
-            children = cluster_dag_rev[i]
-            if children[0] != 0:
                 kid_errors = [monotonic_error[j] for j in children]
                 error = max(error, max(kid_errors))
-            monotonic_error.append(error)
-        cluster_errors = monotonic_error
 
-        # print(f"Cluster DAG has {len(cluster_dag)} clusters. {len(cluster_verts)} verts. {len(cluster_errors)} errors. {len(cluster_bounding_spheres)} spheres. {len(self.cluster_dag_rev)} rev nodes.")
+            cluster_bounding_spheres.append(sphere)
+            monotonic_error.append(error)
+
+        cluster_errors = monotonic_error
 
         assert (
             len(cluster_dag)
@@ -162,7 +129,13 @@ def next_lod(lod, parallel=True):
         cluster_to_tris[cluster].append(i)
 
     # Create cluster super-groups
-    grouped = group_clusters(clusters, adjacencies, GROUP_SIZE)
+    num_orig_clusters = len(cluster_to_tris)
+    if num_orig_clusters > GROUP_SIZE * 2:
+        grouped = group_clusters(clusters, adjacencies, num_orig_clusters // GROUP_SIZE)
+    elif num_orig_clusters > 2:
+        grouped = group_clusters(clusters, adjacencies, 2)
+    else:
+        grouped = [0 for i in range(num_orig_clusters)]
 
     clusters_dict = defaultdict(list)
     for i, group in enumerate(grouped):
@@ -204,9 +177,15 @@ def simplify_group(lod, cluster_to_tris, group):
     new_tris = np.sort(new_tris, axis=1)
 
     simplified_vertices, simplified_faces = simplify_mesh_inside(new_vertices, new_tris)
-    new_adjacencies, new_clusters = group_tris(
-        simplified_faces, cluster_size=CLUSTER_SIZE
-    )
+
+    if len(simplified_faces) > CLUSTER_SIZE * 2:
+        new_adjacencies, new_clusters = group_tris(
+            simplified_faces, cluster_size=CLUSTER_SIZE
+        )
+    else:
+        new_adjacencies = None
+        new_clusters = np.zeros(len(simplified_faces), dtype=int)
+
     geometric_error = calc_geometric_error(simplified_vertices, new_vertices)
 
     return (
