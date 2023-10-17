@@ -24,16 +24,16 @@ class LODTrisViewer:
     def __init__(self, display_dim=(1920, 1080)):
         self.meshes = []
 
-        profiler = Profile()
-        profiler.enable()
+        # profiler = Profile()
+        # profiler.enable()
         self.models = {k: LODGraph(v[0]) for k, v in MODELS.items()}
-        profiler.disable()
-        profiler.dump_stats("profile.prof")
-        subprocess.run(
-            ["gprof2dot", "-f", "pstats", "profile.prof", "-o", "call_graph.dot"]
-        )
-        subprocess.run(["dot", "-Tpng", "call_graph.dot", "-o", "call_graph.png"])
-        sys.exit(0)
+        # profiler.disable()
+        # profiler.dump_stats("profile/profile.prof")
+        # subprocess.run(
+        #     ["gprof2dot", "-f", "pstats", "profile/profile.prof", "-o", "profile/call_graph.dot"]
+        # )
+        # subprocess.run(["dot", "-Tpng", "profile/call_graph.dot", "-o", "profile/call_graph.png"])
+        # sys.exit(0)
 
         pygame.init()
         self.display_dim = display_dim

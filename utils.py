@@ -77,15 +77,12 @@ def create_dual_graph(tris):
             edge_to_tri[edge].append(i)
 
     adjacency = defaultdict(list)
-
     for triss in edge_to_tri.values():
         for tri1, tri2 in combinations(triss, 2):  # iterate over unique pairs
             adjacency[tri1].append(tri2)
             adjacency[tri2].append(tri1)
 
-    adjacency = [sorted(adjacency[i]) for i in range(len(tris))]
-
-    return adjacency
+    return [sorted(adjacency[i]) for i in range(len(tris))]
 
 
 def create_dual_graph_clusters(member_adjacencies, clusters_membership):
@@ -145,10 +142,8 @@ def simplify_mesh_inside(vertices, faces, removal_ratio=0.5):
 
 def calc_geometric_error(verts1, verts2):
     tree = KDTree(verts2)
-    error = 0
-    for v in verts1:
-        dist, _ = tree.query(v)
-        error += dist**2
+    dists, _ = tree.query(verts1)
+    error = np.sum(np.square(dists))
     return np.sqrt(error / len(verts1))
 
 
