@@ -17,19 +17,19 @@ class Camera:
 
         # Camera position
         self.position = matrix[3][:3]
-        matrix = matrix.T
+        # matrix = matrix.T
 
-        # Clipping planes
-        self.planes = np.array(
-            [
-                self.normalize_plane(matrix[3] + matrix[0]),  # Left
-                self.normalize_plane(matrix[3] - matrix[0]),  # Right
-                self.normalize_plane(matrix[3] + matrix[1]),  # Bottom
-                self.normalize_plane(matrix[3] - matrix[1]),  # Top
-                self.normalize_plane(matrix[3] + matrix[2]),  # Near
-                self.normalize_plane(matrix[3] - matrix[2]),  # Far
-            ]
-        )
+        # # Clipping planes
+        # self.planes = np.array(
+        #     [
+        #         self.normalize_plane(matrix[3] + matrix[0]),  # Left
+        #         self.normalize_plane(matrix[3] - matrix[0]),  # Right
+        #         self.normalize_plane(matrix[3] + matrix[1]),  # Bottom
+        #         self.normalize_plane(matrix[3] - matrix[1]),  # Top
+        #         self.normalize_plane(matrix[3] + matrix[2]),  # Near
+        #         self.normalize_plane(matrix[3] - matrix[2]),  # Far
+        #     ]
+        # )
 
         self.last_matrix = matrix
         return True

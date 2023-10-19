@@ -38,7 +38,7 @@ def load_obj(path):
     tris = np.sort(tris, axis=1)
 
     print("Loaded %d vertices and %d faces" % (len(vertices), len(tris)))
-    return vertices, tris
+    return vertices.astype(np.float32), tris
 
 
 def load_texture(path):

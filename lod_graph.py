@@ -1,6 +1,7 @@
 from collections import defaultdict
 from functools import partial
 import multiprocessing as mp
+from pprint import pprint
 
 import numpy as np
 
@@ -12,7 +13,7 @@ from utils import (
     group_clusters,
     load_obj,
     minimum_bounding_sphere,
-    simplify_mesh_inside,
+    simplify_mesh_inside
 )
 
 
@@ -47,8 +48,8 @@ class LODGraph:
 
         # Create the cluster DAG
         cluster_dag = []
+        cluster_errors = []
         cluster_verts = [[]]
-        cluster_errors = [0]
         num_clusters = 1  # ! Attention, this is dependent on having a single sink node
         for lod in self.lods:
             vertices, tris, __, clusters, graph_adjacencies, geometric = lod
@@ -71,6 +72,7 @@ class LODGraph:
             num_clusters += num_current_clusters
 
         cluster_dag.append([])  # Root node (least detailed)
+        cluster_errors.append(1.5 * cluster_errors[-1])
 
         # Create the reverse DAG
         cluster_dag_rev = defaultdict(list)
@@ -78,10 +80,10 @@ class LODGraph:
             for adj in adjs:
                 cluster_dag_rev[adj].append(i)
 
-        self.cluster_dag_rev = [cluster_dag_rev[i] for i in range(num_clusters)]
+        cluster_dag_rev = [cluster_dag_rev[i] for i in range(num_clusters)]
 
         # Enforce monotonic cluster error and monotonic increasing bounding spheres (parent fully contains children)
-        cluster_bounding_spheres = [((0, 0), 0)]
+        cluster_bounding_spheres = [((0, 0, 0), 0)]
         monotonic_error = [0]
         for i in range(1, num_clusters):
             sphere = calc_bounding_sphere(cluster_verts[i])
@@ -90,8 +92,10 @@ class LODGraph:
             if children[0] != 0:
                 all_spheres = [sphere]
                 all_spheres += [cluster_bounding_spheres[j] for j in children]
-                new_sphere = minimum_bounding_sphere(all_spheres)
-                sphere = new_sphere
+                all_spheres.sort(
+                    key=lambda x: x[1], reverse=True
+                )  # Sort bounding sphere by radius!
+                sphere = minimum_bounding_sphere(all_spheres)
 
                 kid_errors = [monotonic_error[j] for j in children]
                 error = max(error, max(kid_errors))
@@ -99,21 +103,27 @@ class LODGraph:
             cluster_bounding_spheres.append(sphere)
             monotonic_error.append(error)
 
-        cluster_errors = monotonic_error
-
-        assert (
-            len(cluster_dag)
-            == num_clusters
-            == len(cluster_verts)
-            == len(cluster_errors)
-            == len(cluster_bounding_spheres)
-            == len(self.cluster_dag_rev)
-        )
-
         self.cluster_dag = cluster_dag
+        self.cluster_dag_rev = cluster_dag_rev
         self.cluster_verts = cluster_verts
-        self.cluster_errors = cluster_errors
-        self.cluster_bounding_spheres = cluster_bounding_spheres
+        self.cluster_errors = np.array(monotonic_error)
+        self.cluster_bounding_centers = np.array(
+            [i[0] for i in cluster_bounding_spheres]
+        )
+        self.cluster_bounding_radii = np.array([i[1] for i in cluster_bounding_spheres])
+
+        # print(
+        #     f"Cluster DAG has {len(self.cluster_dag)} clusters and rev: {len(self.cluster_dag_rev)} and {len(self.cluster_verts)} vertices. num_clusters = {num_clusters}")
+        # print(f"Errors: {len(self.cluster_errors)}, Bounding centers: {len(self.cluster_bounding_centers)}, Bounding radii: {len(self.cluster_bounding_radii)}")
+        assert (
+            len(self.cluster_dag)
+            == len(self.cluster_dag_rev)
+            == num_clusters
+            == len(self.cluster_verts)
+            == len(self.cluster_errors)
+            == len(self.cluster_bounding_centers)
+            == len(self.cluster_bounding_radii)
+        )
 
         print(f"Cluster DAG has {len(cluster_dag)} clusters.")
 

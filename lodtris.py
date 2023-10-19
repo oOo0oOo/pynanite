@@ -6,6 +6,7 @@ import pygame
 from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
+import numpy as np
 
 from lod_mesh import LODMesh
 from lod_graph import LODGraph
@@ -36,15 +37,18 @@ class LODTrisViewer:
         # sys.exit(0)
 
         pygame.init()
+        pygame.font.init()
+        self.font = pygame.font.SysFont(None, 36)
+
         self.display_dim = display_dim
         self.display = pygame.display.set_mode(display_dim, DOUBLEBUF | OPENGL)
-        pygame.display.set_caption("LODtris 0.1")
+        pygame.display.set_caption("LODTris 0.1")
         pygame.mouse.set_visible(False)
         pygame.event.set_grab(True)
 
         self.cameraStartPos = [0, 0.5, -4]
         self.prevKeyState = None
-        self.dynamicLOD = False
+        self.dynamicLOD = True
         self.__init_opengl()
 
     def __init_opengl(self):
@@ -83,19 +87,47 @@ class LODTrisViewer:
         self.camera = Camera()
 
     def create_mesh_from_model(self, model_name, position=(0, 0, 0)):
+        position = np.array(position)
         mesh = LODMesh(self.models[model_name], self.camera, position)
         self.meshes.append(mesh)
 
     def run(self):
+        profiler = Profile()
+        profiler.enable()
+
+        def do_quit():
+            profiler.disable()
+            profiler.dump_stats("profile/profile.prof")
+            subprocess.run(
+                [
+                    "gprof2dot",
+                    "-f",
+                    "pstats",
+                    "profile/profile.prof",
+                    "-o",
+                    "profile/call_graph.dot",
+                ]
+            )
+            subprocess.run(
+                [
+                    "dot",
+                    "-Tpng",
+                    "profile/call_graph.dot",
+                    "-o",
+                    "profile/call_graph.png",
+                ]
+            )
+            pygame.quit()
+
+        start_ticks = pygame.time.get_ticks()  # Starter tick
+        frames = 0
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    pygame.quit()
-                    return
+                    do_quit()
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
-                        pygame.quit()
-                        return
+                        do_quit()
 
             self.__update_view()
 
@@ -105,8 +137,21 @@ class LODTrisViewer:
                     mesh.step_graph_cut()
                 mesh.update()
 
+            # if frames % 10 == 0: # Every 10 frames, update the FPS counter
+            #     end_ticks = pygame.time.get_ticks()
+            #     fps = 10000 / (end_ticks - start_ticks)
+            #     start_ticks = end_ticks
+            #     print(f"FPS: {fps} | Triangles: {self.renderer.total_vertices // 3}")
+            #     fps_text = self.font.render(f"FPS: {fps}", True, (255, 255, 255))
+            #     triangles_text = self.font.render(f"Triangles: {self.renderer.total_vertices // 3}", True, (255, 255, 255))
+
+            # print(f"Triangles: {self.renderer.total_vertices // 3}")
+            # self.display.blit(fps_text, (10, 10))
+            # self.display.blit(triangles_text, (10, 50))
+
             pygame.display.flip()
-            pygame.time.wait(1)
+            pygame.time.delay(1000 // 120)  # Limit 120 FPS
+            frames += 1
 
     def __update_view(self):
         keypress = pygame.key.get_pressed()
@@ -137,8 +182,8 @@ class LODTrisViewer:
 
 if __name__ == "__main__":
     viewer = LODTrisViewer()
-    for z in range(10):
-        for x in range(5):
+    for z in range(7):
+        for x in range(7):
             viewer.create_mesh_from_model("flower", (x * 5, 0, z * 5))
 
     viewer.run()
