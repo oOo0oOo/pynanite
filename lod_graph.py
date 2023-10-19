@@ -13,7 +13,7 @@ from utils import (
     group_clusters,
     load_obj,
     minimum_bounding_sphere,
-    simplify_mesh_inside
+    simplify_mesh_inside,
 )
 
 

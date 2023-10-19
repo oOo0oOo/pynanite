@@ -9,9 +9,11 @@ class ClusterMesh:
 
     def __init__(self, position, cluster_verts):
         self.position = position
-        self.cluster_verts = [np.float32((verts + position).ravel()) for verts in cluster_verts[1:]]
+        self.cluster_verts = [
+            np.float32((verts + position).ravel()) for verts in cluster_verts[1:]
+        ]
         self.cluster_verts.insert(0, [])
-        
+
         self.master_vbo = None
         self.clusters = set([len(self.cluster_verts) - 1])
 
@@ -75,7 +77,7 @@ class ClusterMesh:
 
 #     # def set_mesh_clusters(self, mesh_id, cluster_ids):
 #     #     self.meshes[mesh_id].set_clusters(cluster_ids)
-    
+
 #     def draw(self):
 #         if self.master_vbo is None:
 #             self.update_vbo()
