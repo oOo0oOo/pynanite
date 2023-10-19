@@ -2,16 +2,19 @@ from collections import defaultdict
 from functools import partial
 import multiprocessing as mp
 from pprint import pprint
+from scipy.spatial import KDTree
 
 import numpy as np
 
 from utils import (
     calc_bounding_sphere,
     calc_geometric_error,
+    calculate_normals,
     create_dual_graph,
     group_tris,
     group_clusters,
     load_obj,
+    load_texture,
     minimum_bounding_sphere,
     simplify_mesh_inside,
 )
@@ -23,14 +26,24 @@ GROUP_SIZE = 8
 
 
 class LODGraph:
-    def __init__(self, path):
+    def __init__(self, paths):
+        obj_path, texture_path = paths
         # Create LOD 0
-        vertices, tris = load_obj(path)
+        vertices, tris, texture_coords = load_obj(obj_path)
+        normals = calculate_normals(vertices, tris)
         adjacencies, clusters = group_tris(tris, CLUSTER_SIZE_INITIAL)
         graph_adjacencies = [np.array(range(max(clusters) + 1))]
         geometric_errors = [0]
         self.lods = [
-            [vertices, tris, adjacencies, clusters, graph_adjacencies, geometric_errors]
+            [
+                vertices,
+                tris,
+                adjacencies,
+                clusters,
+                graph_adjacencies,
+                geometric_errors,
+                normals,
+            ]
         ]
 
         clusters_remaining = max(clusters) + 1
@@ -50,9 +63,10 @@ class LODGraph:
         cluster_dag = []
         cluster_errors = []
         cluster_verts = [[]]
+        cluster_normals = [[]]
         num_clusters = 1  # ! Attention, this is dependent on having a single sink node
         for lod in self.lods:
-            vertices, tris, __, clusters, graph_adjacencies, geometric = lod
+            vertices, tris, __, clusters, graph_adjacencies, geometric, normals = lod
 
             for adjs in graph_adjacencies:
                 cluster_dag.append(adjs + num_clusters)
@@ -67,6 +81,8 @@ class LODGraph:
             for i in range(max(clusters) + 1):
                 verts = vertices[cluster_map[i]].reshape(-1, 3)
                 cluster_verts.append(verts)
+                norms = normals[cluster_map[i]].reshape(-1, 3)
+                cluster_normals.append(norms)
 
             num_current_clusters = max(clusters) + 1
             num_clusters += num_current_clusters
@@ -103,6 +119,16 @@ class LODGraph:
             cluster_bounding_spheres.append(sphere)
             monotonic_error.append(error)
 
+        # Texturing (simple closest vertex lookup)
+        self.texture_id = load_texture(texture_path)
+        cluster_textures = [[]]
+        tree = KDTree(self.lods[0][0])
+        for i in range(1, num_clusters):
+            verts = cluster_verts[i]
+            _, indices = tree.query(verts)
+            # print(texture_coords[indices])
+            cluster_textures.append(texture_coords[indices])
+        
         self.cluster_dag = cluster_dag
         self.cluster_dag_rev = cluster_dag_rev
         self.cluster_verts = cluster_verts
@@ -111,10 +137,9 @@ class LODGraph:
             [i[0] for i in cluster_bounding_spheres]
         )
         self.cluster_bounding_radii = np.array([i[1] for i in cluster_bounding_spheres])
+        self.cluster_normals = cluster_normals
+        self.cluster_textures = cluster_textures
 
-        # print(
-        #     f"Cluster DAG has {len(self.cluster_dag)} clusters and rev: {len(self.cluster_dag_rev)} and {len(self.cluster_verts)} vertices. num_clusters = {num_clusters}")
-        # print(f"Errors: {len(self.cluster_errors)}, Bounding centers: {len(self.cluster_bounding_centers)}, Bounding radii: {len(self.cluster_bounding_radii)}")
         assert (
             len(self.cluster_dag)
             == len(self.cluster_dag_rev)
@@ -123,13 +148,15 @@ class LODGraph:
             == len(self.cluster_errors)
             == len(self.cluster_bounding_centers)
             == len(self.cluster_bounding_radii)
+            == len(self.cluster_normals)
+            == len(self.cluster_textures)
         )
 
         print(f"Cluster DAG has {len(cluster_dag)} clusters.")
 
 
 def next_lod(lod, parallel=True):
-    vertices, tris, adjacencies, clusters, __, __ = lod
+    vertices, tris, adjacencies, clusters, __, __, __ = lod
 
     assert len(tris) == len(clusters)
 
@@ -166,7 +193,7 @@ def next_lod(lod, parallel=True):
 
 
 def simplify_group(lod, cluster_to_tris, group):
-    vertices, tris, __, __, __, __ = lod
+    vertices, tris, __, __, __, __, __ = lod
 
     new_vertices = []
     new_tris = []
@@ -186,7 +213,9 @@ def simplify_group(lod, cluster_to_tris, group):
     new_tris = np.array(new_tris)
     new_tris = np.sort(new_tris, axis=1)
 
-    simplified_vertices, simplified_faces = simplify_mesh_inside(new_vertices, new_tris)
+    simplified_vertices, simplified_faces, simplified_normals = simplify_mesh_inside(
+        new_vertices, new_tris
+    )
 
     if len(simplified_faces) > CLUSTER_SIZE * 2:
         new_adjacencies, new_clusters = group_tris(
@@ -204,6 +233,7 @@ def simplify_group(lod, cluster_to_tris, group):
         new_adjacencies,
         new_clusters,
         geometric_error,
+        simplified_normals,
     )
 
 
@@ -229,6 +259,7 @@ def combine_group_lods(group_lods, clusters_in_group):
     new_vertices = []
     new_tris = []
     new_clusters = []
+    new_normals = []
 
     num_clusters = 0
     start_clusters = sum([len(i) for i in clusters_in_group])
@@ -238,14 +269,15 @@ def combine_group_lods(group_lods, clusters_in_group):
     geometric_errors = {}
 
     for i, lod in enumerate(group_lods):
-        vertices, tris, adjacencies, clusters, geometric_error = lod
+        vertices, tris, adjacencies, clusters, geometric_error, normals = lod
 
         vertices = [tuple(vertex) for vertex in vertices]
 
-        for vertex in vertices:
+        for vert_i, vertex in enumerate(vertices):
             if vertex not in vertex_mapping:
                 vertex_mapping[vertex] = len(new_vertices)
                 new_vertices.append(vertex)
+                new_normals.append(normals[vert_i])
 
         for tri in tris:
             new_tris.append([vertex_mapping[vertices[vertex]] for vertex in tri])
@@ -266,8 +298,9 @@ def combine_group_lods(group_lods, clusters_in_group):
 
     new_clusters = np.concatenate(new_clusters)
     new_vertices = np.array(new_vertices)
-    new_tris = np.array(new_tris)
+    new_normals = np.array(new_normals)
 
+    new_tris = np.array(new_tris)
     new_tris = np.sort(new_tris, axis=1)
 
     new_adjacencies = create_dual_graph(new_tris)
@@ -279,4 +312,5 @@ def combine_group_lods(group_lods, clusters_in_group):
         new_clusters,
         graph_adjacencies,
         geometric_errors,
+        new_normals,
     )

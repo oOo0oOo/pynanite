@@ -17,13 +17,25 @@ def load_obj(path):
 
     vertices = []
     tris = []
+    texture_coords = []
+    vertex_vt_map = {}
     for line in lines:
         if line.startswith("v "):
             vertices.append([float(v) for v in line.split()[1:]])
+        elif line.startswith("vt "):
+            texture_coords.append([float(v) for v in line.split()[1:]])
         elif line.startswith("f "):
-            tris.append(
-                [int(v.split("/")[0]) - 1 for v in line.split()[1:]]
-            )  # NOTE: -1 because obj indices start at 1
+            elements = line.split()[1:]
+            tri = []
+            for element in elements:
+                v, t = element.split("/")
+                v = int(v) - 1  # NOTE: -1 because obj indices start at 1
+                vertex_vt_map[v] = int(t) - 1
+                tri.append(v)
+            tris.append(tri)
+
+    texture_coords = [texture_coords[vertex_vt_map[i]] for i in range(len(vertices))]
+    texture_coords = np.array(texture_coords, dtype=np.float32)
 
     # Now scale the 3D points to be between 0 and 1
     vertices = np.array(vertices)
@@ -38,13 +50,15 @@ def load_obj(path):
     tris = np.sort(tris, axis=1)
 
     print("Loaded %d vertices and %d faces" % (len(vertices), len(tris)))
-    return vertices.astype(np.float32), tris
+    return vertices.astype(np.float32), tris, texture_coords
 
 
 def load_texture(path):
     # Load texture
     img = Image.open(path)
-    img_data = np.array(list(img.getdata()), np.uint8)
+    img = img.transpose(Image.FLIP_TOP_BOTTOM)
+    # img_data = np.array(list(img.getdata()), np.uint8)
+    img_data = np.array(img, dtype=np.uint8)
 
     # Generate a texture id
     texture_id = glGenTextures(1)
@@ -52,8 +66,6 @@ def load_texture(path):
     glBindTexture(GL_TEXTURE_2D, texture_id)
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-
-    # Upload the image data to GPU as a texture
     glTexImage2D(
         GL_TEXTURE_2D,
         0,
@@ -65,6 +77,8 @@ def load_texture(path):
         GL_UNSIGNED_BYTE,
         img_data,
     )
+
+    # print(f"Loaded texture {path} ({img.width} x {img.height}) with id {texture_id}")
     return texture_id
 
 
@@ -135,9 +149,13 @@ def simplify_mesh_inside(vertices, faces, removal_ratio=0.5):
     mesh_simplifier = Simplify()
     mesh_simplifier.setMesh(vertices, faces)
     mesh_simplifier.simplify_mesh(target_faces, preserve_border=True, verbose=0)
-    simplified_vertices, simplified_faces, __ = mesh_simplifier.getMesh()
+    (
+        simplified_vertices,
+        simplified_faces,
+        simplified_normals,
+    ) = mesh_simplifier.getMesh()
     simplified_faces = np.sort(simplified_faces, axis=1)
-    return simplified_vertices, simplified_faces
+    return simplified_vertices, simplified_faces, simplified_normals
 
 
 def calc_geometric_error(verts1, verts2):
@@ -183,6 +201,29 @@ def welzl(S, radii, B=None):
     radius = (d + Bp[1] + rad) / 2
     Bpp = (center, radius)
     return Bpp
+
+
+def calculate_normals(vertices, faces):
+    # Calculate the vectors representing two sides of each triangle
+    v1 = vertices[faces[:, 1] - 1] - vertices[faces[:, 0] - 1]
+    v2 = vertices[faces[:, 2] - 1] - vertices[faces[:, 0] - 1]
+
+    # Calculate the cross product of the vectors to get the face normals
+    face_normals = np.cross(v1, v2)
+
+    # Normalize the face normals
+    face_normals /= np.linalg.norm(face_normals, axis=1)[:, np.newaxis]
+
+    # Initialize an array for the vertex normals
+    vertex_normals = np.zeros(vertices.shape, dtype=vertices.dtype)
+
+    # Add each face's normal to its vertices' normals
+    np.add.at(vertex_normals, faces - 1, face_normals[:, np.newaxis])
+
+    # Normalize the vertex normals
+    vertex_normals /= np.linalg.norm(vertex_normals, axis=1)[:, np.newaxis]
+
+    return vertex_normals
 
 
 def visualize_adjacencies(adjacencies):

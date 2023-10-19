@@ -10,7 +10,9 @@ class LODMesh:
         self.lod_dag = lod_dag
         self.camera = camera
         self.position = position
-        self.cluster_mesh = ClusterMesh(position, lod_dag.cluster_verts)
+        self.cluster_mesh = ClusterMesh(
+            position, lod_dag.cluster_verts, lod_dag.cluster_textures, lod_dag.texture_id
+        )
 
         # Precalc the bounding sphere translation
         self.spheres = self.lod_dag.cluster_bounding_centers.copy() + position
@@ -39,7 +41,7 @@ class LODMesh:
                         parents = self.lod_dag.cluster_dag[cluster]
                         to_remove.update(self.lod_dag.cluster_dag_rev[parents[0]])
                         to_add.update(parents)
-                
+
                 # Refinement (increase lod): Check max error of all children
                 elif cluster_error > THRESHOLD:
                     all_kids = self.lod_dag.cluster_dag_rev[cluster]

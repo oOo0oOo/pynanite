@@ -7,57 +7,79 @@ import numpy as np
 class ClusterMesh:
     """Drawing a mesh with multiple clusters made up of tris."""
 
-    def __init__(self, position, cluster_verts):
+    def __init__(
+        self,
+        position,
+        cluster_verts,
+        cluster_textures,
+        texture_id
+    ):
         self.position = position
+        self.texture_id = texture_id
         self.cluster_verts = [
             np.float32((verts + position).ravel()) for verts in cluster_verts[1:]
         ]
         self.cluster_verts.insert(0, [])
 
-        self.master_vbo = None
+        self.cluster_textures = [
+            np.float32(texcoords.ravel()) for texcoords in cluster_textures[1:]
+        ]
+        self.cluster_textures.insert(0, [])
+
+        self.vertex_vbo = None
+        self.tex_vbo = None
         self.clusters = set([len(self.cluster_verts) - 1])
-
-    def add_clusters(self, cluster_ids):
-        self.clusters.update(cluster_ids)
-        self.update_vbo()
-
-    def remove_clusters(self, cluster_ids):
-        self.clusters -= cluster_ids
-        self.update_vbo()
 
     def set_clusters(self, cluster_ids):
         self.clusters = cluster_ids
         self.update_vbo()
 
-    def reset_clusters(self):
-        self.clusters = set()
-        self.num_vertices = 0
-        self.master_vbo = None
-
     def draw(self):
-        if self.master_vbo is None:
+        if self.vertex_vbo is None:
             self.update_vbo()
 
-        self.master_vbo.bind()
+        glEnable(GL_TEXTURE_2D)
+        glBindTexture(GL_TEXTURE_2D, self.texture_id)
+
+        self.vertex_vbo.bind()
         glEnableClientState(GL_VERTEX_ARRAY)
-        glVertexPointer(3, GL_FLOAT, 0, self.master_vbo)
-        glColor3f(0.6, 0.4, 0.2)
+        glVertexPointer(3, GL_FLOAT, 0, self.vertex_vbo)
+
+        self.tex_vbo.bind()
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+        glTexCoordPointer(2, GL_FLOAT, 0, self.tex_vbo)
+        
+        # glColor3f(1,1,1)
         glDrawArrays(GL_TRIANGLES, 0, self.num_vertices)
+
+        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        self.tex_vbo.unbind()
+
         glDisableClientState(GL_VERTEX_ARRAY)
-        self.master_vbo.unbind()
+        self.vertex_vbo.unbind()
+
+        glDisable(GL_TEXTURE_2D)
 
     def update_vbo(self):
         # Call this function every time the clusters change
         vertices = np.concatenate([self.cluster_verts[id] for id in self.clusters])
+        texcoords = np.concatenate([self.cluster_textures[id] for id in self.clusters])
         self.num_vertices = vertices.size
 
-        if self.master_vbo is None:
-            self.master_vbo = vbo.VBO(vertices)
+        if self.vertex_vbo is None:
+            self.vertex_vbo = vbo.VBO(vertices)
+            self.tex_vbo = vbo.VBO(texcoords)
+
         else:
-            self.master_vbo.set_array(vertices)
-            self.master_vbo.bind()
-            self.master_vbo.copy_data()
-            self.master_vbo.unbind()
+            self.vertex_vbo.set_array(vertices)
+            self.vertex_vbo.bind()
+            self.vertex_vbo.copy_data()
+            self.vertex_vbo.unbind()
+            
+            self.tex_vbo.set_array(texcoords)
+            self.tex_vbo.bind()
+            self.tex_vbo.copy_data()
+            self.tex_vbo.unbind()
 
 
 # class ClusterRenderer:

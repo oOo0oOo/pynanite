@@ -23,19 +23,6 @@ MODELS = {
 
 class LODTrisViewer:
     def __init__(self, display_dim=(1920, 1080)):
-        self.meshes = []
-
-        # profiler = Profile()
-        # profiler.enable()
-        self.models = {k: LODGraph(v[0]) for k, v in MODELS.items()}
-        # profiler.disable()
-        # profiler.dump_stats("profile/profile.prof")
-        # subprocess.run(
-        #     ["gprof2dot", "-f", "pstats", "profile/profile.prof", "-o", "profile/call_graph.dot"]
-        # )
-        # subprocess.run(["dot", "-Tpng", "profile/call_graph.dot", "-o", "profile/call_graph.png"])
-        # sys.exit(0)
-
         pygame.init()
         pygame.font.init()
         self.font = pygame.font.SysFont(None, 20)
@@ -51,6 +38,19 @@ class LODTrisViewer:
         self.dynamicLOD = True
         self.__init_opengl()
 
+        self.meshes = []
+
+        # profiler = Profile()
+        # profiler.enable()
+        self.models = {k: LODGraph(v) for k, v in MODELS.items()}
+        # profiler.disable()
+        # profiler.dump_stats("profile/profile.prof")
+        # subprocess.run(
+        #     ["gprof2dot", "-f", "pstats", "profile/profile.prof", "-o", "profile/call_graph.dot"]
+        # )
+        # subprocess.run(["dot", "-Tpng", "profile/call_graph.dot", "-o", "profile/call_graph.png"])
+        # sys.exit(0)
+
     def __init_opengl(self):
         # ATTENTION: Disables backface culling
         # This is required for simplicity; not keeping track of normals
@@ -61,13 +61,15 @@ class LODTrisViewer:
         glLoadIdentity()
         glClearColor(0.25, 0.25, 0.25, 1.0)
 
-        # glShadeModel(GL_SMOOTH)
-        # glEnable(GL_COLOR_MATERIAL)
-        # glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
+        glShadeModel(GL_SMOOTH)
+        glEnable(GL_COLOR_MATERIAL)
+        glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
 
+        # Enable lighting
+        # glEnable(GL_LIGHTING)
         # glEnable(GL_LIGHT0)
-        # glLightfv(GL_LIGHT0, GL_AMBIENT, [0.5, 0.5, 1, 1])
-        # glLightfv(GL_LIGHT0, GL_DIFFUSE, [1.0, 1.0, 1.0, 1])
+        # glLightfv(GL_LIGHT0, GL_DIFFUSE, [1.0, 1.0, 1.0, 1.0])
+        # glLightfv(GL_LIGHT0, GL_POSITION, [0.0, 0.0, 1.0, 0.0])
 
         glMatrixMode(GL_PROJECTION)
         gluPerspective(45, (self.display_dim[0] / self.display_dim[1]), 0.1, 100.0)
@@ -135,6 +137,7 @@ class LODTrisViewer:
             self.__update_view()
 
             self.camera.update()
+
             for mesh in self.meshes:
                 if self.dynamicLOD:
                     mesh.step_graph_cut()
