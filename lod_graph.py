@@ -2,8 +2,9 @@ from collections import defaultdict
 from functools import partial
 import multiprocessing as mp
 from pprint import pprint
-from scipy.spatial import KDTree
+import pickle
 
+from scipy.spatial import KDTree
 import numpy as np
 
 from utils import (
@@ -23,11 +24,17 @@ from utils import (
 CLUSTER_SIZE_INITIAL = 160
 CLUSTER_SIZE = 128
 GROUP_SIZE = 8
+FORCE_BUILD = False
 
 
 class LODGraph:
     def __init__(self, paths):
-        obj_path, texture_path = paths
+        obj_path, texture_path, build_path = paths
+
+        if not FORCE_BUILD:
+            if self.load_from_pickle(build_path):
+                return
+
         # Create LOD 0
         vertices, tris, texture_coords = load_obj(obj_path)
         normals = calculate_normals(vertices, tris)
@@ -151,8 +158,46 @@ class LODGraph:
             == len(self.cluster_normals)
             == len(self.cluster_textures)
         )
-
+        self.save_to_pickle(paths)
         print(f"Cluster DAG has {len(cluster_dag)} clusters.")
+
+    def save_to_pickle(self, paths):
+        data = [
+            self.cluster_dag,
+            self.cluster_dag_rev,
+            self.cluster_verts,
+            self.cluster_errors,
+            self.cluster_bounding_centers,
+            self.cluster_bounding_radii,
+            self.cluster_normals,
+            self.cluster_textures,
+            paths
+        ]
+        with open(paths[2], "wb") as f:
+            pickle.dump(data, f)
+    
+    def load_from_pickle(self, path):
+        try:
+            with open(path, "rb") as f:
+                data = pickle.load(f)
+        except FileNotFoundError:
+            return False
+
+        (
+            self.cluster_dag,
+            self.cluster_dag_rev,
+            self.cluster_verts,
+            self.cluster_errors,
+            self.cluster_bounding_centers,
+            self.cluster_bounding_radii,
+            self.cluster_normals,
+            self.cluster_textures,
+            paths
+        ) = data
+
+        self.texture_id = load_texture(paths[1])
+
+        return True
 
 
 def next_lod(lod, parallel=True):

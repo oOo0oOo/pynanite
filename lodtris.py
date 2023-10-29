@@ -17,6 +17,7 @@ MODELS = {
     "flower": [
         "data/Flower.obj/Flower.obj",
         "data/Flower.obj/Flower_0.jpg",
+        "data/build/Flower.pickle"
     ]
 }
 
@@ -54,16 +55,16 @@ class LODTrisViewer:
     def __init_opengl(self):
         # ATTENTION: Disables backface culling
         # This is required for simplicity; not keeping track of normals
-        # glDisable(GL_CULL_FACE)
+        glDisable(GL_CULL_FACE)
         # glDisable(GL_LIGHTING)
         # glDisable(GL_DEPTH_TEST)
 
         glLoadIdentity()
         glClearColor(0.25, 0.25, 0.25, 1.0)
 
-        glShadeModel(GL_SMOOTH)
-        glEnable(GL_COLOR_MATERIAL)
-        glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
+        # glShadeModel(GL_SMOOTH)
+        # glEnable(GL_COLOR_MATERIAL)
+        # glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
 
         # Enable lighting
         # glEnable(GL_LIGHTING)
@@ -213,8 +214,8 @@ class LODTrisViewer:
 
 if __name__ == "__main__":
     viewer = LODTrisViewer()
-    for z in range(7):
-        for x in range(7):
+    for z in range(1):
+        for x in range(1):
             viewer.create_mesh_from_model("flower", (x * 5, 0, z * 5))
 
     viewer.run()
