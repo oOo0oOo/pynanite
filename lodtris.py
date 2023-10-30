@@ -1,6 +1,7 @@
 import sys
 import subprocess
 from cProfile import Profile
+from time import time
 
 import pygame
 from pygame.locals import *
@@ -209,13 +210,22 @@ class LODTrisViewer:
         if keypress[pygame.K_e] and not self.prevKeyState[pygame.K_e]:
             self.dynamicLOD = not self.dynamicLOD
 
+        # Save screenshot on keypress p
+        if keypress[pygame.K_p] and not self.prevKeyState[pygame.K_p]:
+            width, height = pygame.display.get_surface().get_size()
+            glReadBuffer(GL_FRONT)
+            pixels = glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE)
+            image = pygame.image.fromstring(pixels, (width, height), 'RGB')
+            image = pygame.transform.flip(image, False, True)  # Flip the image vertically
+            pygame.image.save(image, f"screenshots/{int(time())}.png")
+
         self.prevKeyState = keypress
 
 
 if __name__ == "__main__":
     viewer = LODTrisViewer()
-    for z in range(1):
-        for x in range(1):
+    for z in range(7):
+        for x in range(7):
             viewer.create_mesh_from_model("flower", (x * 5, 0, z * 5))
 
     viewer.run()
