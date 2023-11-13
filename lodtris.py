@@ -15,10 +15,15 @@ from camera import Camera
 
 
 MODELS = {
-    "flower": [
-        "data/Flower.obj/Flower.obj",
-        "data/Flower.obj/Flower_0.jpg",
-        "data/build/Flower.pickle"
+    # "flower": [
+    #     "data/Flower.obj/Flower.obj",
+    #     "data/Flower.obj/Flower_0.jpg",
+    #     "data/build/Flower.pickle"
+    # ],
+    "cat": [
+        "data/Cat.obj/Cat.obj",
+        "data/Cat.obj/Cat.png",
+        "data/build/Cat.pickle",
     ]
 }
 
@@ -58,7 +63,7 @@ class LODTrisViewer:
         # This is required for simplicity; not keeping track of normals
         glDisable(GL_CULL_FACE)
         # glDisable(GL_LIGHTING)
-        # glDisable(GL_DEPTH_TEST)
+        glDisable(GL_DEPTH_TEST)
 
         glLoadIdentity()
         glClearColor(0.25, 0.25, 0.25, 1.0)
@@ -68,10 +73,10 @@ class LODTrisViewer:
         # glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
 
         # Enable lighting
-        # glEnable(GL_LIGHTING)
-        # glEnable(GL_LIGHT0)
-        # glLightfv(GL_LIGHT0, GL_DIFFUSE, [1.0, 1.0, 1.0, 1.0])
-        # glLightfv(GL_LIGHT0, GL_POSITION, [0.0, 0.0, 1.0, 0.0])
+        glEnable(GL_LIGHTING)
+        glEnable(GL_LIGHT0)
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, [1.0, 1.0, 1.0, 1.0])
+        glLightfv(GL_LIGHT0, GL_POSITION, [0.0, 0.0, 1.0, 0.0])
 
         glMatrixMode(GL_PROJECTION)
         gluPerspective(45, (self.display_dim[0] / self.display_dim[1]), 0.1, 100.0)
@@ -226,6 +231,6 @@ if __name__ == "__main__":
     viewer = LODTrisViewer()
     for z in range(7):
         for x in range(7):
-            viewer.create_mesh_from_model("flower", (x * 5, 0, z * 5))
+            viewer.create_mesh_from_model("cat", (x * 5, 0, z * 5))
 
     viewer.run()

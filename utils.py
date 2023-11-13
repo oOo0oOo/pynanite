@@ -18,24 +18,48 @@ def load_obj(path):
     vertices = []
     tris = []
     texture_coords = []
+    normals = []
     vertex_vt_map = {}
+    vertex_vn_map = {}
     for line in lines:
         if line.startswith("v "):
             vertices.append([float(v) for v in line.split()[1:]])
         elif line.startswith("vt "):
             texture_coords.append([float(v) for v in line.split()[1:]])
+        elif line.startswith("vn "):
+            normals.append([float(v) for v in line.split()[1:]])
         elif line.startswith("f "):
             elements = line.split()[1:]
             tri = []
             for element in elements:
-                v, t = element.split("/")
+                v, t, n = element.split("/")
                 v = int(v) - 1  # NOTE: -1 because obj indices start at 1
                 vertex_vt_map[v] = int(t) - 1
-                tri.append(v)
-            tris.append(tri)
+                vertex_vn_map[v] = int(n) - 1
 
-    texture_coords = [texture_coords[vertex_vt_map[i]] for i in range(len(vertices))]
+                tri.append(v)
+
+            # Convert quads to tris
+            if len(tri) == 4:
+                tris.append([tri[0], tri[1], tri[2]])
+                tris.append([tri[0], tri[2], tri[3]])
+            else:
+                tris.append(tri)
+            
+    try:
+        texture_coords = [texture_coords[vertex_vt_map[i]] for i in range(len(vertices))]
+    except IndexError:
+        print("Invalid textures")
+        texture_coords = [[0, 0] for _ in range(len(vertices))]
     texture_coords = np.array(texture_coords, dtype=np.float32)
+
+    try:
+        normals = [normals[vertex_vn_map[i]] for i in range(len(vertices))]
+    except IndexError:
+        print("Invalid normals")
+        normals = [[0, 0, 0] for _ in range(len(vertices))]
+    
+    normals = np.array(normals, dtype=np.float32)
 
     # Now scale the 3D points to be between 0 and 1
     vertices = np.array(vertices)
@@ -50,7 +74,7 @@ def load_obj(path):
     tris = np.sort(tris, axis=1)
 
     print("Loaded %d vertices and %d faces" % (len(vertices), len(tris)))
-    return vertices.astype(np.float32), tris, texture_coords
+    return vertices.astype(np.float32), tris, texture_coords, normals
 
 
 def load_texture(path):

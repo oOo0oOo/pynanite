@@ -12,7 +12,8 @@ class ClusterMesh:
         position,
         cluster_verts,
         cluster_textures,
-        texture_id
+        texture_id,
+        cluster_normals
     ):
         self.position = position
         self.texture_id = texture_id
@@ -26,8 +27,14 @@ class ClusterMesh:
         ]
         self.cluster_textures.insert(0, [])
 
+        self.cluster_normals = [
+            np.float32(normals.ravel()) for normals in cluster_normals[1:]
+        ]
+        self.cluster_normals.insert(0, [])
+
         self.vertex_vbo = None
         self.tex_vbo = None
+        self.norm_vbo = None
         self.clusters = set([len(self.cluster_verts) - 1])
 
     def set_clusters(self, cluster_ids):
@@ -45,15 +52,22 @@ class ClusterMesh:
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointer(3, GL_FLOAT, 0, self.vertex_vbo)
 
-        self.tex_vbo.bind()
-        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
-        glTexCoordPointer(2, GL_FLOAT, 0, self.tex_vbo)
+        # self.tex_vbo.bind()
+        # glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+        # glTexCoordPointer(2, GL_FLOAT, 0, self.tex_vbo)
         
+        self.norm_vbo.bind()
+        glEnableClientState(GL_NORMAL_ARRAY)
+        glNormalPointer(GL_FLOAT, 0, self.norm_vbo)
+
         # glColor3f(1,1,1)
         glDrawArrays(GL_TRIANGLES, 0, self.num_vertices)
 
-        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
-        self.tex_vbo.unbind()
+        glDisableClientState(GL_NORMAL_ARRAY)
+        self.norm_vbo.unbind()
+
+        # glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        # self.tex_vbo.unbind()
 
         glDisableClientState(GL_VERTEX_ARRAY)
         self.vertex_vbo.unbind()
@@ -64,11 +78,13 @@ class ClusterMesh:
         # Call this function every time the clusters change
         vertices = np.concatenate([self.cluster_verts[id] for id in self.clusters])
         texcoords = np.concatenate([self.cluster_textures[id] for id in self.clusters])
+        normals = np.concatenate([self.cluster_normals[id] for id in self.clusters])
         self.num_vertices = vertices.size
 
         if self.vertex_vbo is None:
             self.vertex_vbo = vbo.VBO(vertices)
             self.tex_vbo = vbo.VBO(texcoords)
+            self.norm_vbo = vbo.VBO(normals)
 
         else:
             self.vertex_vbo.set_array(vertices)
@@ -80,6 +96,11 @@ class ClusterMesh:
             self.tex_vbo.bind()
             self.tex_vbo.copy_data()
             self.tex_vbo.unbind()
+
+            self.norm_vbo.set_array(normals)
+            self.norm_vbo.bind()
+            self.norm_vbo.copy_data()
+            self.norm_vbo.unbind()
 
 
 # class ClusterRenderer:

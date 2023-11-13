@@ -11,7 +11,7 @@ class LODMesh:
         self.camera = camera
         self.position = position
         self.cluster_mesh = ClusterMesh(
-            position, lod_dag.cluster_verts, lod_dag.cluster_textures, lod_dag.texture_id
+            position, lod_dag.cluster_verts, lod_dag.cluster_textures, lod_dag.texture_id, lod_dag.cluster_normals
         )
 
         # Precalc the bounding sphere translation

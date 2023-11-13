@@ -36,8 +36,9 @@ class LODGraph:
                 return
 
         # Create LOD 0
-        vertices, tris, texture_coords = load_obj(obj_path)
-        normals = calculate_normals(vertices, tris)
+        vertices, tris, texture_coords, orig_normals = load_obj(obj_path)
+ 
+        # normals = calculate_normals(vertices, tris)
         adjacencies, clusters = group_tris(tris, CLUSTER_SIZE_INITIAL)
         graph_adjacencies = [np.array(range(max(clusters) + 1))]
         geometric_errors = [0]
@@ -49,7 +50,7 @@ class LODGraph:
                 clusters,
                 graph_adjacencies,
                 geometric_errors,
-                normals,
+                orig_normals,
             ]
         ]
 
@@ -129,12 +130,13 @@ class LODGraph:
         # Texturing (simple closest vertex lookup)
         self.texture_id = load_texture(texture_path)
         cluster_textures = [[]]
+        cluster_normals = [[]]
         tree = KDTree(self.lods[0][0])
         for i in range(1, num_clusters):
             verts = cluster_verts[i]
             _, indices = tree.query(verts)
-            # print(texture_coords[indices])
             cluster_textures.append(texture_coords[indices])
+            cluster_normals.append(orig_normals[indices])
         
         self.cluster_dag = cluster_dag
         self.cluster_dag_rev = cluster_dag_rev
@@ -261,6 +263,20 @@ def simplify_group(lod, cluster_to_tris, group):
     simplified_vertices, simplified_faces, simplified_normals = simplify_mesh_inside(
         new_vertices, new_tris
     )
+
+    # Since OpenGL handles normals per vertex, and this simplification method returns normals per face,
+    # we use the average of the normals of the faces that share a vertex as the vertex normal
+    simplified_vertices_len = len(simplified_vertices)
+    avg_normal = np.zeros((simplified_vertices_len, 3))
+    avg_count = np.zeros(simplified_vertices_len)
+    for face_i, face in enumerate(simplified_faces):
+        for vertex in face:
+            avg_normal[vertex] += simplified_normals[face_i]
+            avg_count[vertex] += 1
+    
+    simplified_normals = np.array([normal / count for normal, count in zip(avg_normal, avg_count)])
+
+    assert len(simplified_vertices) == len(simplified_normals)
 
     if len(simplified_faces) > CLUSTER_SIZE * 2:
         new_adjacencies, new_clusters = group_tris(
