@@ -22,7 +22,7 @@ MODELS = {
     # ],
     "cat": [
         "data/Cat.obj/Cat.obj",
-        "data/Cat.obj/Cat.png",
+        "data/Cat.obj/Cat.jpg",
         "data/build/Cat.pickle",
     ]
 }
@@ -61,9 +61,9 @@ class LODTrisViewer:
     def __init_opengl(self):
         # ATTENTION: Disables backface culling
         # This is required for simplicity; not keeping track of normals
-        glDisable(GL_CULL_FACE)
+        # glDisable(GL_CULL_FACE)
         # glDisable(GL_LIGHTING)
-        glDisable(GL_DEPTH_TEST)
+        # glDisable(GL_DEPTH_TEST)
 
         glLoadIdentity()
         glClearColor(0.25, 0.25, 0.25, 1.0)
@@ -80,6 +80,7 @@ class LODTrisViewer:
 
         glMatrixMode(GL_PROJECTION)
         gluPerspective(45, (self.display_dim[0] / self.display_dim[1]), 0.1, 100.0)
+        glEnable(GL_DEPTH_TEST)
 
         glMatrixMode(GL_MODELVIEW)
         gluLookAt(
@@ -229,8 +230,8 @@ class LODTrisViewer:
 
 if __name__ == "__main__":
     viewer = LODTrisViewer()
-    for z in range(7):
-        for x in range(7):
+    for z in range(5):
+        for x in range(10):
             viewer.create_mesh_from_model("cat", (x * 5, 0, z * 5))
 
     viewer.run()

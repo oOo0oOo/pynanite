@@ -19,6 +19,12 @@ class LODMesh:
 
         self.last_cluster = len(self.lod_dag.cluster_verts) - 1
 
+    def set_min_lod(self):
+        self.cluster_mesh.set_clusters({len(self.lod_dag.cluster_verts) - 1})
+
+    def set_max_lod(self):
+        self.cluster_mesh.set_clusters(self.lod_dag.cluster_dag[0])
+
     def step_graph_cut(self, num_steps=1):
         any_change = False
         for __ in range(num_steps):

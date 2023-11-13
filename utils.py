@@ -12,40 +12,39 @@ from scipy.spatial import KDTree
 
 
 def load_obj(path):
-    with open(path, "r") as f:
-        lines = f.readlines()
-
     vertices = []
     tris = []
     texture_coords = []
     normals = []
     vertex_vt_map = {}
     vertex_vn_map = {}
-    for line in lines:
-        if line.startswith("v "):
-            vertices.append([float(v) for v in line.split()[1:]])
-        elif line.startswith("vt "):
-            texture_coords.append([float(v) for v in line.split()[1:]])
-        elif line.startswith("vn "):
-            normals.append([float(v) for v in line.split()[1:]])
-        elif line.startswith("f "):
-            elements = line.split()[1:]
-            tri = []
-            for element in elements:
-                v, t, n = element.split("/")
-                v = int(v) - 1  # NOTE: -1 because obj indices start at 1
-                vertex_vt_map[v] = int(t) - 1
-                vertex_vn_map[v] = int(n) - 1
 
-                tri.append(v)
+    with open(path, "r") as f:
+        for line in f.readlines():
+            if line.startswith("v "):
+                vertices.append([float(v) for v in line.split()[1:]])
+            elif line.startswith("vt "):
+                texture_coords.append([float(v) for v in line.split()[1:]])
+            elif line.startswith("vn "):
+                normals.append([float(v) for v in line.split()[1:]])
+            elif line.startswith("f "):
+                elements = line.split()[1:]
+                tri = []
+                for element in elements:
+                    v, t, n = element.split("/")
+                    v = int(v) - 1  # NOTE: -1 because obj indices start at 1
+                    vertex_vt_map[v] = int(t) - 1
+                    vertex_vn_map[v] = int(n) - 1
 
-            # Convert quads to tris
-            if len(tri) == 4:
-                tris.append([tri[0], tri[1], tri[2]])
-                tris.append([tri[0], tri[2], tri[3]])
-            else:
-                tris.append(tri)
-            
+                    tri.append(v)
+
+                # Convert quads to tris
+                if len(tri) == 4:
+                    tris.append([tri[0], tri[1], tri[2]])
+                    tris.append([tri[0], tri[2], tri[3]])
+                else:
+                    tris.append(tri)
+    
     try:
         texture_coords = [texture_coords[vertex_vt_map[i]] for i in range(len(vertices))]
     except IndexError:
@@ -61,7 +60,7 @@ def load_obj(path):
     
     normals = np.array(normals, dtype=np.float32)
 
-    # Now scale the 3D points to be between 0 and 1
+    # Scaling the vertices 0 - 1
     vertices = np.array(vertices)
 
     min_axis = np.min(vertices)
@@ -71,9 +70,8 @@ def load_obj(path):
     vertices /= max_axis
 
     tris = np.array(tris)
-    tris = np.sort(tris, axis=1)
 
-    print("Loaded %d vertices and %d faces" % (len(vertices), len(tris)))
+    print("Loaded %d vertices and %d tris" % (len(vertices), len(tris)))
     return vertices.astype(np.float32), tris, texture_coords, normals
 
 
@@ -81,7 +79,6 @@ def load_texture(path):
     # Load texture
     img = Image.open(path)
     img = img.transpose(Image.FLIP_TOP_BOTTOM)
-    # img_data = np.array(list(img.getdata()), np.uint8)
     img_data = np.array(img, dtype=np.uint8)
 
     # Generate a texture id
@@ -108,9 +105,9 @@ def load_texture(path):
 
 def create_dual_graph(tris):
     # Create an unweighted dual graph of the mesh tris
-    # NOTE: Expects tris to be sorted
     edge_to_tri = defaultdict(list)
     for i, tri in enumerate(tris):
+        tri = sorted(tri)
         for edge in combinations(tri, 2):
             edge_to_tri[edge].append(i)
 
@@ -120,7 +117,7 @@ def create_dual_graph(tris):
             adjacency[tri1].append(tri2)
             adjacency[tri2].append(tri1)
 
-    return [sorted(adjacency[i]) for i in range(len(tris))]
+    return [adjacency[i] for i in range(len(tris))]
 
 
 def create_dual_graph_clusters(member_adjacencies, clusters_membership):
@@ -137,9 +134,10 @@ def create_dual_graph_clusters(member_adjacencies, clusters_membership):
             # Only add an edge if it is a border edge (clusters are different)
             if curr_cluster != adj_cluster:
                 dual_graph_clusters[curr_cluster][adj_cluster] += 1
+                dual_graph_clusters[adj_cluster][curr_cluster] += 1
 
     dual_graph_clusters = [
-        tuple([(key, value) for key, value in sorted(dual_graph_clusters[i].items())])
+        tuple([(key, value) for key, value in dual_graph_clusters[i].items()])
         for i in range(num_clusters)
     ]
     return dual_graph_clusters
@@ -178,7 +176,21 @@ def simplify_mesh_inside(vertices, faces, removal_ratio=0.5):
         simplified_faces,
         simplified_normals,
     ) = mesh_simplifier.getMesh()
-    simplified_faces = np.sort(simplified_faces, axis=1)
+
+    # Since OpenGL handles normals per vertex, and this simplification method returns normals per face,
+    # we use the average of the normals of the faces that share a vertex as the vertex normal
+    simplified_vertices_len = len(simplified_vertices)
+    avg_normal = np.zeros((simplified_vertices_len, 3))
+    avg_count = np.zeros(simplified_vertices_len)
+    for face_i, face in enumerate(simplified_faces):
+        for vertex in face:
+            avg_normal[vertex] += simplified_normals[face_i]
+            avg_count[vertex] += 1
+    
+    simplified_normals = np.array([normal / count for normal, count in zip(avg_normal, avg_count)])
+
+    assert len(simplified_vertices) == len(simplified_normals)
+
     return simplified_vertices, simplified_faces, simplified_normals
 
 

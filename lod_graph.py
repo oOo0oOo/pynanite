@@ -10,7 +10,6 @@ import numpy as np
 from utils import (
     calc_bounding_sphere,
     calc_geometric_error,
-    calculate_normals,
     create_dual_graph,
     group_tris,
     group_clusters,
@@ -37,9 +36,9 @@ class LODGraph:
 
         # Create LOD 0
         vertices, tris, texture_coords, orig_normals = load_obj(obj_path)
- 
-        # normals = calculate_normals(vertices, tris)
         adjacencies, clusters = group_tris(tris, CLUSTER_SIZE_INITIAL)
+        assert len(clusters) == len(tris)
+
         graph_adjacencies = [np.array(range(max(clusters) + 1))]
         geometric_errors = [0]
         self.lods = [
@@ -50,7 +49,7 @@ class LODGraph:
                 clusters,
                 graph_adjacencies,
                 geometric_errors,
-                orig_normals,
+                orig_normals.copy(),
             ]
         ]
 
@@ -60,12 +59,15 @@ class LODGraph:
         )
 
         # Simplify the graph until we have a single cluster remaining
-        while clusters_remaining > 1:
+        max_lod = 30
+        while clusters_remaining > 1 and max_lod > 0:
             self.lods.append(next_lod(self.lods[-1], parallel=False))
             clusters_remaining = max(self.lods[-1][3]) + 1
             print(
                 f"LOD {len(self.lods) - 1} has {len(self.lods[-1][1])} tris and {clusters_remaining} clusters."
             )
+            
+            max_lod -= 1
 
         # Create the cluster DAG
         cluster_dag = []
@@ -113,16 +115,17 @@ class LODGraph:
             sphere = calc_bounding_sphere(cluster_verts[i])
             error = cluster_errors[i]
             children = cluster_dag_rev[i]
-            if children[0] != 0:
-                all_spheres = [sphere]
-                all_spheres += [cluster_bounding_spheres[j] for j in children]
-                all_spheres.sort(
-                    key=lambda x: x[1], reverse=True
-                )  # Sort bounding sphere by radius!
-                sphere = minimum_bounding_sphere(all_spheres)
+            if children:
+                if min(children) != 0:
+                    all_spheres = [sphere]
+                    all_spheres += [cluster_bounding_spheres[j] for j in children]
+                    all_spheres.sort(
+                        key=lambda x: x[1], reverse=True
+                    )  # Sort bounding sphere by radius!
+                    sphere = minimum_bounding_sphere(all_spheres)
 
-                kid_errors = [monotonic_error[j] for j in children]
-                error = max(error, max(kid_errors))
+                    kid_errors = [monotonic_error[j] for j in children]
+                    error = max(error, max(kid_errors))
 
             cluster_bounding_spheres.append(sphere)
             monotonic_error.append(error)
@@ -130,13 +133,11 @@ class LODGraph:
         # Texturing (simple closest vertex lookup)
         self.texture_id = load_texture(texture_path)
         cluster_textures = [[]]
-        cluster_normals = [[]]
         tree = KDTree(self.lods[0][0])
         for i in range(1, num_clusters):
             verts = cluster_verts[i]
             _, indices = tree.query(verts)
             cluster_textures.append(texture_coords[indices])
-            cluster_normals.append(orig_normals[indices])
         
         self.cluster_dag = cluster_dag
         self.cluster_dag_rev = cluster_dag_rev
@@ -216,7 +217,7 @@ def next_lod(lod, parallel=True):
     num_orig_clusters = len(cluster_to_tris)
     if num_orig_clusters > GROUP_SIZE * 2:
         grouped = group_clusters(clusters, adjacencies, num_orig_clusters // GROUP_SIZE)
-    elif num_orig_clusters > 2:
+    elif num_orig_clusters > 3:
         grouped = group_clusters(clusters, adjacencies, 2)
     else:
         grouped = [0 for i in range(num_orig_clusters)]
@@ -258,25 +259,10 @@ def simplify_group(lod, cluster_to_tris, group):
 
     new_vertices = np.array(new_vertices)
     new_tris = np.array(new_tris)
-    new_tris = np.sort(new_tris, axis=1)
 
     simplified_vertices, simplified_faces, simplified_normals = simplify_mesh_inside(
         new_vertices, new_tris
     )
-
-    # Since OpenGL handles normals per vertex, and this simplification method returns normals per face,
-    # we use the average of the normals of the faces that share a vertex as the vertex normal
-    simplified_vertices_len = len(simplified_vertices)
-    avg_normal = np.zeros((simplified_vertices_len, 3))
-    avg_count = np.zeros(simplified_vertices_len)
-    for face_i, face in enumerate(simplified_faces):
-        for vertex in face:
-            avg_normal[vertex] += simplified_normals[face_i]
-            avg_count[vertex] += 1
-    
-    simplified_normals = np.array([normal / count for normal, count in zip(avg_normal, avg_count)])
-
-    assert len(simplified_vertices) == len(simplified_normals)
 
     if len(simplified_faces) > CLUSTER_SIZE * 2:
         new_adjacencies, new_clusters = group_tris(
@@ -293,6 +279,7 @@ def simplify_group(lod, cluster_to_tris, group):
         simplified_faces,
         new_adjacencies,
         new_clusters,
+        # No graph adjacencies
         geometric_error,
         simplified_normals,
     )
@@ -362,8 +349,6 @@ def combine_group_lods(group_lods, clusters_in_group):
     new_normals = np.array(new_normals)
 
     new_tris = np.array(new_tris)
-    new_tris = np.sort(new_tris, axis=1)
-
     new_adjacencies = create_dual_graph(new_tris)
 
     return (

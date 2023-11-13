@@ -52,27 +52,26 @@ class ClusterMesh:
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointer(3, GL_FLOAT, 0, self.vertex_vbo)
 
-        # self.tex_vbo.bind()
-        # glEnableClientState(GL_TEXTURE_COORD_ARRAY)
-        # glTexCoordPointer(2, GL_FLOAT, 0, self.tex_vbo)
+        self.tex_vbo.bind()
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+        glTexCoordPointer(2, GL_FLOAT, 0, self.tex_vbo)
         
         self.norm_vbo.bind()
         glEnableClientState(GL_NORMAL_ARRAY)
         glNormalPointer(GL_FLOAT, 0, self.norm_vbo)
 
-        # glColor3f(1,1,1)
         glDrawArrays(GL_TRIANGLES, 0, self.num_vertices)
 
         glDisableClientState(GL_NORMAL_ARRAY)
         self.norm_vbo.unbind()
 
-        # glDisableClientState(GL_TEXTURE_COORD_ARRAY)
-        # self.tex_vbo.unbind()
+        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        self.tex_vbo.unbind()
 
         glDisableClientState(GL_VERTEX_ARRAY)
         self.vertex_vbo.unbind()
 
-        glDisable(GL_TEXTURE_2D)
+        # glDisable(GL_TEXTURE_2D)
 
     def update_vbo(self):
         # Call this function every time the clusters change
