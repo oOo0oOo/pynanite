@@ -31,10 +31,28 @@ def load_obj(path):
                 elements = line.split()[1:]
                 tri = []
                 for element in elements:
-                    v, t, n = element.split("/")
+                    els = element.split("/")
+
+                    t = 0
+                    n = 0
+                    if len(els) == 1:
+                        v = els[0]
+                    elif len(els) == 2:
+                        v, t = els
+                    elif len(els) == 3:
+                        v, t, n = els
+
                     v = int(v) - 1  # NOTE: -1 because obj indices start at 1
-                    vertex_vt_map[v] = int(t) - 1
-                    vertex_vn_map[v] = int(n) - 1
+
+                    if t:   
+                        vertex_vt_map[v] = int(t) - 1
+                    else:
+                        vertex_vt_map[v] = 0
+                    
+                    if n:
+                        vertex_vn_map[v] = int(n) - 1
+                    else:
+                        vertex_vn_map[v] = 0
 
                     tri.append(v)
 

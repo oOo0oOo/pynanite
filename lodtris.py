@@ -37,8 +37,6 @@ class LODTrisViewer:
         self.display_dim = display_dim
         self.display = pygame.display.set_mode(display_dim, DOUBLEBUF | OPENGL)
         pygame.display.set_caption("LODTris 0.1")
-        pygame.mouse.set_visible(False)
-        pygame.event.set_grab(True)
 
         self.cameraStartPos = [0, 0.5, -4]
         self.prevKeyState = None
@@ -102,6 +100,9 @@ class LODTrisViewer:
         self.meshes.append(mesh)
 
     def run(self):
+        pygame.mouse.set_visible(False)
+        pygame.event.set_grab(True)
+
         # profiler = Profile()
         # profiler.enable()
 
@@ -129,7 +130,8 @@ class LODTrisViewer:
             # )
             pygame.quit()
 
-        start_ticks = pygame.time.get_ticks()  # Starter tick
+        self.last_time = time()  # Starter tick
+        self.delta = 0
         textSurface = self.font.render("", True, (255, 255, 255))
         textData = pygame.image.tostring(textSurface, "RGBA", True)
 
@@ -142,9 +144,11 @@ class LODTrisViewer:
                     if event.key == pygame.K_ESCAPE:
                         do_quit()
 
-            self.__update_view()
+            cur_time = time()
+            self.delta = cur_time - self.last_time
+            self.last_time = cur_time
 
-            self.camera.update()
+            self.__update_view()
 
             for mesh in self.meshes:
                 if self.dynamicLOD:
@@ -152,12 +156,10 @@ class LODTrisViewer:
                 mesh.update()
 
             if frames % 60 == 0:  # Every 60 frames, update the FPS counter
-                end_ticks = pygame.time.get_ticks()
-                fps = 60000 / (end_ticks - start_ticks)
-                start_ticks = end_ticks
                 triangles = sum([m.cluster_mesh.num_vertices // 9 for m in self.meshes])
                 triangles = round(triangles / 1000000, 2)
 
+                fps = 1 / self.delta
                 msg = f"Dynamic LOD: {self.dynamicLOD} | FPS: {round(fps, 1)} | Triangles: {triangles} M"
                 textSurface = self.font.render(
                     msg, True, (255, 255, 255, 255), (0, 0, 0, 0)
@@ -199,18 +201,41 @@ class LODTrisViewer:
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-        glRotatef(mouse_move[0] * 0.1, 0, 1, 0)
-        glRotatef(-mouse_move[1] * 0.1, 1, 0, 0)
-
-        movement_speed = 0.1
+        # Update the camera position based on keypress
+        movement_speed = 2.0 * self.delta
+        if keypress[pygame.K_LSHIFT]:
+            movement_speed *= 8
+        
+        xangle = self.camera.look_angle[0]
         if keypress[pygame.K_w]:
-            glTranslatef(0, 0, -movement_speed)
+            self.camera.position[0] += -np.sin(xangle) * movement_speed
+            self.camera.position[2] += -np.cos(xangle) * movement_speed
         if keypress[pygame.K_s]:
-            glTranslatef(0, 0, movement_speed)
-        if keypress[pygame.K_d]:
-            glTranslatef(movement_speed, 0, 0)
+            self.camera.position[0] += np.sin(xangle) * movement_speed
+            self.camera.position[2] += np.cos(xangle) * movement_speed
         if keypress[pygame.K_a]:
-            glTranslatef(-movement_speed, 0, 0)
+            self.camera.position[0] += np.sin(xangle - np.pi/2) * movement_speed
+            self.camera.position[2] += np.cos(xangle - np.pi/2) * movement_speed
+        if keypress[pygame.K_d]:
+            self.camera.position[0] += np.sin(xangle + np.pi/2) * movement_speed
+            self.camera.position[2] += np.cos(xangle + np.pi/2) * movement_speed
+
+        # Rotate view according to mouse movement
+        mouse_move = np.maximum(np.minimum(mouse_move, 80), -80)
+        self.camera.look_angle[0] -= mouse_move[0] * 0.05 * self.delta
+        self.camera.look_angle[1] -= mouse_move[1] * 0.035 * self.delta
+
+        # Update the camera's position and orientation
+        glLoadIdentity()
+        gluLookAt(
+            self.camera.position[0], self.camera.position[1], self.camera.position[2], 
+            self.camera.position[0] - np.sin(self.camera.look_angle[0]) * np.cos(self.camera.look_angle[1]), 
+            self.camera.position[1] + np.sin(self.camera.look_angle[1]), 
+            self.camera.position[2] - np.cos(self.camera.look_angle[0]) * np.cos(self.camera.look_angle[1]), 
+            0, 1, 0
+        )
+
+        # self.camera.update()
 
         # On keypress e toggle dynamic LOD
         if keypress[pygame.K_e] and not self.prevKeyState[pygame.K_e]:

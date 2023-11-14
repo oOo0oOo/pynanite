@@ -217,7 +217,7 @@ def next_lod(lod, parallel=True):
     num_orig_clusters = len(cluster_to_tris)
     if num_orig_clusters > GROUP_SIZE * 2:
         grouped = group_clusters(clusters, adjacencies, num_orig_clusters // GROUP_SIZE)
-    elif num_orig_clusters > 3:
+    elif num_orig_clusters > 4:
         grouped = group_clusters(clusters, adjacencies, 2)
     else:
         grouped = [0 for i in range(num_orig_clusters)]

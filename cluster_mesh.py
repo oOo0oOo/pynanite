@@ -71,7 +71,7 @@ class ClusterMesh:
         glDisableClientState(GL_VERTEX_ARRAY)
         self.vertex_vbo.unbind()
 
-        # glDisable(GL_TEXTURE_2D)
+        glDisable(GL_TEXTURE_2D)
 
     def update_vbo(self):
         # Call this function every time the clusters change
