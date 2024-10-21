@@ -84,6 +84,9 @@ class LODTrisViewer:
         glMatrixMode(GL_MODELVIEW)
         self.camera = Camera()
 
+        glClear(GL_COLOR_BUFFER_BIT)
+        pygame.display.flip()
+
     def create_mesh_from_model(self, model_name, position=(0, 0, 0)):
         position = np.array(position)
         mesh = LODMesh(self.models[model_name], self.camera, position)
@@ -123,10 +126,17 @@ class LODTrisViewer:
             pygame.quit()
             sys.exit()
 
-        self.last_time = time()  # Starter tick
+        self.last_time = time()
         self.delta = 0
         textSurface = self.font.render("", True, (255, 255, 255))
         textData = pygame.image.tostring(textSurface, "RGBA", True)
+
+        textInstructions = self.font.render(
+            "WASD to move | Mouse to look | Shift to run | E to toggle dynamic LOD",
+            True,
+            (255, 255, 255), (0, 0, 0, 0)
+        )
+        textInstructionsData = pygame.image.tostring(textInstructions, "RGBA", True)
 
         frames = 0
         while True:
@@ -169,13 +179,22 @@ class LODTrisViewer:
             glPushMatrix()
             glLoadIdentity()
 
-            glRasterPos2i(5, 20)
+            glRasterPos2i(self.display_dim[0] - 350, 20)
             glDrawPixels(
                 textSurface.get_width(),
                 textSurface.get_height(),
                 GL_RGBA,
                 GL_UNSIGNED_BYTE,
                 textData,
+            )
+
+            glRasterPos2i(5, 20)
+            glDrawPixels(
+                textInstructions.get_width(),
+                textInstructions.get_height(),
+                GL_RGBA,
+                GL_UNSIGNED_BYTE,
+                textInstructionsData,
             )
 
             glPopMatrix()
