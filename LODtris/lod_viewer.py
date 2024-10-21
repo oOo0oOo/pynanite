@@ -13,7 +13,9 @@ from LODtris import LODMesh, LODGraph, Camera, __version__
 
 
 class LODTrisViewer:
-    def __init__(self, models, display_dim=(1920, 1080), profile_meshing=False):
+    def __init__(self, models, display_dim=(1920, 1080), profile_meshing=False, force_mesh_build=False,
+                cluster_size_initial=160, cluster_size=128, group_size=8):
+        
         pygame.init()
         pygame.font.init()
         self.font = pygame.font.SysFont(None, 20)
@@ -33,7 +35,13 @@ class LODTrisViewer:
         if profile_meshing:
             profiler = Profile()
             profiler.enable()
-        self.models = {k: LODGraph(v) for k, v in models.items()}
+        
+        self.models = {k: LODGraph(v, 
+                                    force_mesh_build,
+                                    cluster_size_initial,
+                                    cluster_size,
+                                    group_size
+                                ) for k, v in models.items()}
 
         if profile_meshing:
             profiler.disable()
@@ -77,35 +85,37 @@ class LODTrisViewer:
         mesh = LODMesh(self.models[model_name], self.camera, position)
         self.meshes.append(mesh)
 
-    def run(self):
+    def run(self, profile=False):
         pygame.mouse.set_visible(False)
         pygame.event.set_grab(True)
 
-        profiler = Profile()
-        profiler.enable()
+        if profile:
+            profiler = Profile()
+            profiler.enable()
 
         def do_quit():
-            profiler.disable()
-            profiler.dump_stats("profile/profile.prof")
-            subprocess.run(
-                [
-                    "gprof2dot",
-                    "-f",
-                    "pstats",
-                    "profile/profile.prof",
-                    "-o",
-                    "profile/call_graph.dot",
-                ]
-            )
-            subprocess.run(
-                [
-                    "dot",
-                    "-Tpng",
-                    "profile/call_graph.dot",
-                    "-o",
-                    "profile/call_graph.png",
-                ]
-            )
+            if profile:
+                profiler.disable()
+                profiler.dump_stats("profile/profile.prof")
+                subprocess.run(
+                    [
+                        "gprof2dot",
+                        "-f",
+                        "pstats",
+                        "profile/profile.prof",
+                        "-o",
+                        "profile/call_graph.dot",
+                    ]
+                )
+                subprocess.run(
+                    [
+                        "dot",
+                        "-Tpng",
+                        "profile/call_graph.dot",
+                        "-o",
+                        "profile/call_graph.png",
+                    ]
+                )
             pygame.quit()
             sys.exit()
 

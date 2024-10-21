@@ -19,23 +19,23 @@ from .utils import (
 )
 
 
-CLUSTER_SIZE_INITIAL = 160
-CLUSTER_SIZE = 128
-GROUP_SIZE = 8
-FORCE_BUILD = False
-
-
 class LODGraph:
-    def __init__(self, paths):
+    def __init__(self, paths, force_build=False, cluster_size_initial=160, cluster_size=128, group_size=8):
         obj_path, texture_path, build_path = paths
 
-        if not FORCE_BUILD:
+        self.config = {
+            "cluster_size_initial": cluster_size_initial,
+            "cluster_size": cluster_size,
+            "group_size": group_size
+        }
+
+        if not force_build:
             if self.load_from_pickle(build_path):
                 return
 
         # Create LOD 0
         vertices, tris, texture_coords, orig_normals = load_obj(obj_path)
-        adjacencies, clusters = group_tris(tris, CLUSTER_SIZE_INITIAL)
+        adjacencies, clusters = group_tris(tris, self.config["cluster_size_initial"])
         assert len(clusters) == len(tris)
 
         graph_adjacencies = [np.array(range(max(clusters) + 1))]
@@ -60,7 +60,7 @@ class LODGraph:
         # Simplify the graph until we have a single cluster remaining
         max_lod = 30
         while clusters_remaining > 1 and max_lod > 0:
-            self.lods.append(next_lod(self.lods[-1], parallel=False))
+            self.lods.append(next_lod(self.lods[-1], self.config, parallel=False))
             clusters_remaining = max(self.lods[-1][3]) + 1
             print(
                 f"LOD {len(self.lods) - 1} has {len(self.lods[-1][1])} tris and {clusters_remaining} clusters."
@@ -202,7 +202,7 @@ class LODGraph:
         return True
 
 
-def next_lod(lod, parallel=True):
+def next_lod(lod, config, parallel=True):
     vertices, tris, adjacencies, clusters, __, __, __ = lod
 
     assert len(tris) == len(clusters)
@@ -214,8 +214,8 @@ def next_lod(lod, parallel=True):
 
     # Create cluster super-groups
     num_orig_clusters = len(cluster_to_tris)
-    if num_orig_clusters > GROUP_SIZE * 2:
-        grouped = group_clusters(clusters, adjacencies, num_orig_clusters // GROUP_SIZE)
+    if num_orig_clusters > config["group_size"] * 2:
+        grouped = group_clusters(clusters, adjacencies, num_orig_clusters // config["group_size"])
     elif num_orig_clusters > 4:
         grouped = group_clusters(clusters, adjacencies, 2)
     else:
@@ -231,15 +231,15 @@ def next_lod(lod, parallel=True):
 
     if parallel:
         simplified_lod = simplify_groups_parallel(
-            lod, cluster_to_tris, clusters_in_group
+            lod, cluster_to_tris, clusters_in_group, config
         )
     else:
-        simplified_lod = simplify_groups(lod, cluster_to_tris, clusters_in_group)
+        simplified_lod = simplify_groups(lod, cluster_to_tris, clusters_in_group, config)
 
     return simplified_lod
 
 
-def simplify_group(lod, cluster_to_tris, group):
+def simplify_group(lod, cluster_to_tris, config, group):
     vertices, tris, __, __, __, __, __ = lod
 
     new_vertices = []
@@ -263,9 +263,9 @@ def simplify_group(lod, cluster_to_tris, group):
         new_vertices, new_tris
     )
 
-    if len(simplified_faces) > CLUSTER_SIZE * 2:
+    if len(simplified_faces) > config["cluster_size"] * 2:
         new_adjacencies, new_clusters = group_tris(
-            simplified_faces, cluster_size=CLUSTER_SIZE
+            simplified_faces, cluster_size=config["cluster_size"]
         )
     else:
         new_adjacencies = None
@@ -284,18 +284,18 @@ def simplify_group(lod, cluster_to_tris, group):
     )
 
 
-def simplify_groups_parallel(lod, cluster_to_tris, clusters_in_group):
+def simplify_groups_parallel(lod, cluster_to_tris, clusters_in_group, config):
     with mp.Pool(int(mp.cpu_count())) as pool:
-        partial_func = partial(simplify_group, lod, cluster_to_tris)
+        partial_func = partial(simplify_group, lod, cluster_to_tris, config)
         results = pool.map(partial_func, clusters_in_group, chunksize=16)
 
     return combine_group_lods(results, clusters_in_group)
 
 
-def simplify_groups(lod, cluster_to_tris, clusters_in_group):
+def simplify_groups(lod, cluster_to_tris, clusters_in_group, config):
     simplified_lods = []
     for group in clusters_in_group:
-        simplified_lods.append(simplify_group(lod, cluster_to_tris, group))
+        simplified_lods.append(simplify_group(lod, cluster_to_tris, config, group))
 
     return combine_group_lods(simplified_lods, clusters_in_group)
 

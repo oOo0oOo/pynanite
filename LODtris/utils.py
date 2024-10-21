@@ -3,7 +3,6 @@ from collections import defaultdict
 
 import numpy as np
 import networkx as nx
-# import pymetis
 import metis
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -165,18 +164,10 @@ def create_dual_graph_clusters(member_adjacencies, clusters_membership):
 
 
 def partition_graph(n_clusters, adjacencies):
-    # DEPRECATED: Uses the metis python library. We do not use this library since it is deprecated.
     # Can use weighted or unweighted adjacency list (see metis docs)
     # NOTE: metis.part_graph can possibly hang (never complete)
     adj = metis.adjlist_to_metis(adjacencies)
     n_cuts, membership = metis.part_graph(adj, n_clusters)
-    return np.array(membership)
-
-
-def partition_graph_pymetis(n_clusters, adjacencies):
-    # Use pymetis for graph partitioning
-    print(len(adjacencies), len(adjacencies[0]), adjacencies[0], len(adjacencies[-1]), adjacencies[-1])
-    n_cuts, membership = pymetis.part_graph(n_clusters, adjacencies)
     return np.array(membership)
 
 
