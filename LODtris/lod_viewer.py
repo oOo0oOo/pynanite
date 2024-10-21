@@ -1,4 +1,5 @@
 import sys
+import os
 import subprocess
 from cProfile import Profile
 from time import time
@@ -24,6 +25,9 @@ class LODTrisViewer:
         self.aspect_ratio = display_dim[0] / display_dim[1]
         self.display = pygame.display.set_mode(display_dim, DOUBLEBUF | OPENGL)
         pygame.display.set_caption("LODTris " + __version__)
+
+        if not os.path.exists("data/build"):
+            os.makedirs("data/build")
 
         self.cameraStartPos = [0, 0.5, -4]
         self.prevKeyState = None

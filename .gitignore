@@ -1,7 +1,10 @@
-data/
+__pycache__/
 venv/
 profile/
-__pycache__/
 screenshots/
 tmp/
+
+data/*
+!data/cat.zip
+
 libmetis.so

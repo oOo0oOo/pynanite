@@ -8,17 +8,18 @@ os.environ["METIS_DLL"] = os.path.join(current_path, "libmetis.so")
 from LODtris.lod_viewer import LODTrisViewer
 
 
+# Example model: Cat (Thanks to Alex Meier!)
+if not os.path.exists("data/cat"):
+    import zipfile
+    with zipfile.ZipFile("data/cat.zip", "r") as zip_ref:
+        zip_ref.extractall("data")
+
 MODELS = {
     "cat": [
-        "data/Cat.obj/Cat.obj",
-        "data/Cat.obj/Cat.jpg",
-        "data/build/Cat.pickle",
+        "data/cat/cat.obj",
+        "data/cat/cat.jpg",
+        "data/build/cat.pickle",
     ],
-    # "flower": [
-    #     "data/Flower.obj/Flower.obj",
-    #     "data/Flower.obj/Flower_0.jpg",
-    #     "data/build/Flower.pickle"
-    # ]
 }
 
 if __name__ == "__main__":
