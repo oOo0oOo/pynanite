@@ -3,3 +3,5 @@ venv/
 profile/
 __pycache__/
 screenshots/
+tmp/
+libmetis.so
