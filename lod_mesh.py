@@ -11,7 +11,11 @@ class LODMesh:
         self.camera = camera
         self.position = position
         self.cluster_mesh = ClusterMesh(
-            position, lod_dag.cluster_verts, lod_dag.cluster_textures, lod_dag.texture_id, lod_dag.cluster_normals
+            position,
+            lod_dag.cluster_verts,
+            lod_dag.cluster_textures,
+            lod_dag.texture_id,
+            lod_dag.cluster_normals,
         )
 
         # Precalc the bounding sphere translation
@@ -70,7 +74,10 @@ class LODMesh:
         dists -= self.lod_dag.cluster_bounding_radii[clusters]
         result = self.lod_dag.cluster_errors[clusters] / dists
         # result[dists <= 0] = np.inf  # We are inside bounding sphere
-        # TODO: Check if bounding sphere is outside frustum
+        in_frustum = self.camera.check_spheres_in_frustum(
+            self.spheres[clusters], self.lod_dag.cluster_bounding_radii[clusters]
+        )
+        result[~in_frustum] = 0
         return result
 
     def update(self):

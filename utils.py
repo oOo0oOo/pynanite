@@ -3,6 +3,7 @@ from collections import defaultdict
 
 import numpy as np
 import networkx as nx
+# import pymetis
 import metis
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -44,11 +45,11 @@ def load_obj(path):
 
                     v = int(v) - 1  # NOTE: -1 because obj indices start at 1
 
-                    if t:   
+                    if t:
                         vertex_vt_map[v] = int(t) - 1
                     else:
                         vertex_vt_map[v] = 0
-                    
+
                     if n:
                         vertex_vn_map[v] = int(n) - 1
                     else:
@@ -62,9 +63,11 @@ def load_obj(path):
                     tris.append([tri[0], tri[2], tri[3]])
                 else:
                     tris.append(tri)
-    
+
     try:
-        texture_coords = [texture_coords[vertex_vt_map[i]] for i in range(len(vertices))]
+        texture_coords = [
+            texture_coords[vertex_vt_map[i]] for i in range(len(vertices))
+        ]
     except IndexError:
         print("Invalid textures")
         texture_coords = [[0, 0] for _ in range(len(vertices))]
@@ -75,7 +78,7 @@ def load_obj(path):
     except IndexError:
         print("Invalid normals")
         normals = [[0, 0, 0] for _ in range(len(vertices))]
-    
+
     normals = np.array(normals, dtype=np.float32)
 
     # Scaling the vertices 0 - 1
@@ -162,10 +165,18 @@ def create_dual_graph_clusters(member_adjacencies, clusters_membership):
 
 
 def partition_graph(n_clusters, adjacencies):
+    # DEPRECATED: Uses the metis python library. We do not use this library since it is deprecated.
     # Can use weighted or unweighted adjacency list (see metis docs)
     # NOTE: metis.part_graph can possibly hang (never complete)
     adj = metis.adjlist_to_metis(adjacencies)
     n_cuts, membership = metis.part_graph(adj, n_clusters)
+    return np.array(membership)
+
+
+def partition_graph_pymetis(n_clusters, adjacencies):
+    # Use pymetis for graph partitioning
+    print(len(adjacencies), len(adjacencies[0]), adjacencies[0], len(adjacencies[-1]), adjacencies[-1])
+    n_cuts, membership = pymetis.part_graph(n_clusters, adjacencies)
     return np.array(membership)
 
 
@@ -204,8 +215,10 @@ def simplify_mesh_inside(vertices, faces, removal_ratio=0.5):
         for vertex in face:
             avg_normal[vertex] += simplified_normals[face_i]
             avg_count[vertex] += 1
-    
-    simplified_normals = np.array([normal / count for normal, count in zip(avg_normal, avg_count)])
+
+    simplified_normals = np.array(
+        [normal / count for normal, count in zip(avg_normal, avg_count)]
+    )
 
     assert len(simplified_vertices) == len(simplified_normals)
 

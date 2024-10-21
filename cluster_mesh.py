@@ -8,12 +8,7 @@ class ClusterMesh:
     """Drawing a mesh with multiple clusters made up of tris."""
 
     def __init__(
-        self,
-        position,
-        cluster_verts,
-        cluster_textures,
-        texture_id,
-        cluster_normals
+        self, position, cluster_verts, cluster_textures, texture_id, cluster_normals
     ):
         self.position = position
         self.texture_id = texture_id
@@ -55,7 +50,7 @@ class ClusterMesh:
         self.tex_vbo.bind()
         glEnableClientState(GL_TEXTURE_COORD_ARRAY)
         glTexCoordPointer(2, GL_FLOAT, 0, self.tex_vbo)
-        
+
         self.norm_vbo.bind()
         glEnableClientState(GL_NORMAL_ARRAY)
         glNormalPointer(GL_FLOAT, 0, self.norm_vbo)
@@ -90,7 +85,7 @@ class ClusterMesh:
             self.vertex_vbo.bind()
             self.vertex_vbo.copy_data()
             self.vertex_vbo.unbind()
-            
+
             self.tex_vbo.set_array(texcoords)
             self.tex_vbo.bind()
             self.tex_vbo.copy_data()

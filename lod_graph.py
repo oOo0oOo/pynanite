@@ -66,7 +66,7 @@ class LODGraph:
             print(
                 f"LOD {len(self.lods) - 1} has {len(self.lods[-1][1])} tris and {clusters_remaining} clusters."
             )
-            
+
             max_lod -= 1
 
         # Create the cluster DAG
@@ -138,7 +138,7 @@ class LODGraph:
             verts = cluster_verts[i]
             _, indices = tree.query(verts)
             cluster_textures.append(texture_coords[indices])
-        
+
         self.cluster_dag = cluster_dag
         self.cluster_dag_rev = cluster_dag_rev
         self.cluster_verts = cluster_verts
@@ -174,11 +174,11 @@ class LODGraph:
             self.cluster_bounding_radii,
             self.cluster_normals,
             self.cluster_textures,
-            paths
+            paths,
         ]
         with open(paths[2], "wb") as f:
             pickle.dump(data, f)
-    
+
     def load_from_pickle(self, path):
         try:
             with open(path, "rb") as f:
@@ -195,7 +195,7 @@ class LODGraph:
             self.cluster_bounding_radii,
             self.cluster_normals,
             self.cluster_textures,
-            paths
+            paths,
         ) = data
 
         self.texture_id = load_texture(paths[1])
