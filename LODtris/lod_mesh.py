@@ -82,3 +82,6 @@ class LODMesh:
 
     def update(self):
         self.cluster_mesh.draw()
+
+    def shutdown(self):
+        self.cluster_mesh.shutdown()

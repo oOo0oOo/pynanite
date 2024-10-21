@@ -123,8 +123,10 @@ class LODTrisViewer:
                         "profile/call_graph.png",
                     ]
                 )
-            pygame.quit()
-            sys.exit()
+            
+            # Delete all VBOs properly
+            for mesh in self.meshes:
+                mesh.shutdown()
 
         self.last_time = time()
         self.delta = 0
@@ -143,9 +145,11 @@ class LODTrisViewer:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     do_quit()
+                    return
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         do_quit()
+                        return
 
             cur_time = time()
             self.delta = cur_time - self.last_time
@@ -254,12 +258,3 @@ class LODTrisViewer:
             pygame.image.save(image, f"screenshots/{int(time())}.png")
 
         self.prevKeyState = keypress
-
-
-if __name__ == "__main__":
-    viewer = LODTrisViewer()
-    for z in range(5):
-        for x in range(10):
-            viewer.create_mesh_from_model("cat", (x * 5, 0, z * 5))
-
-    viewer.run()
