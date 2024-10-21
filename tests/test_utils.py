@@ -1,11 +1,24 @@
+##
+#
+# python -m unittest discover -s tests
+# These tests are not working. Only useful as a starting point...
+#
+##
+
+
 import unittest
-from itertools import combinations
+import os
 
 import numpy as np
 
-from utils import group_tris, simplify_mesh_inside, create_dual_graph
-from lod_mesh import combine_group_lods, next_lod, simplify_groups
+# Set the METIS_DLL environment variable to the current path
+current_path = os.path.abspath(os.path.dirname(__file__))
+parent_path = os.path.abspath(os.path.join(current_path, os.pardir))
+os.environ["METIS_DLL"] = os.path.join(parent_path, "libmetis.so")
 
+from LODtris.utils import group_tris, simplify_mesh_inside, create_dual_graph
+
+from LODtris.lod_graph import next_lod, combine_group_lods
 
 def create_grid_mesh_tris(size=(256, 256)):
     vertices = []
@@ -60,7 +73,7 @@ class TestCombineLods(unittest.TestCase):
         clusters[0:1000] = 1
         lod0 = (vertices, tris, adj, clusters)
 
-        lod_comb = combine_group_lods([lod0])
+        lod_comb = combine_group_lods([lod0], clusters)
         assert np.array_equal(lod_comb[0], vertices)
         assert np.array_equal(lod_comb[1], tris)
         assert np.array_equal(lod_comb[3], clusters)
@@ -69,7 +82,7 @@ class TestCombineLods(unittest.TestCase):
         vertices_shifted[:, 2] += 10
         lod1 = (vertices_shifted, tris, adj, clusters)
 
-        lod_comb = combine_group_lods([lod0, lod1])
+        lod_comb = combine_group_lods([lod0, lod1], clusters)
 
         self.assertIsInstance(lod_comb, tuple)
         self.assertEqual(len(lod_comb), 4)
@@ -95,13 +108,19 @@ class TestCombineLods(unittest.TestCase):
 
 class TestLOD(unittest.TestCase):
     def test_lod_pipeline(self):
+        config = {
+            "cluster_size_initial": 160,
+            "cluster_size": 128,
+            "group_size": 8
+        }
+
         vertices, tris, adj = create_grid_mesh_tris()
         adjacencies, clusters = group_tris(tris, cluster_size=94)
 
-        lods = [[vertices, tris, adjacencies, clusters]]
+        lods = [[vertices, tris, adjacencies, clusters, [], [], []]]
         num_clusters = max(clusters) + 1
         while num_clusters > 20:
-            lods.append(next_lod(lods[-1], parallel=False))
+            lods.append(next_lod(lods[-1], config, parallel=False))
             num_clusters = max(lods[-1][3]) + 1
         print(
             f"Finished simplification, created {len(lods)} LODs. {num_clusters} clusters remaining."
