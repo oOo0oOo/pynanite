@@ -11,7 +11,6 @@ from OpenGL.GLU import gluLookAt
 FOV_EXTENSION_FACTOR = 1.0
 
 class Camera:
-    
     def __init__(self):
         self.position = np.array([0, 0.85, -4], dtype=np.float32)
         self.look_angle = np.array([np.pi, 0], dtype=np.float32)  # Horizontal and vertical angles

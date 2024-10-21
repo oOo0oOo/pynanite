@@ -1,13 +1,12 @@
 from collections import defaultdict
 from functools import partial
 import multiprocessing as mp
-from pprint import pprint
 import pickle
 
 from scipy.spatial import KDTree
 import numpy as np
 
-from utils import (
+from .utils import (
     calc_bounding_sphere,
     calc_geometric_error,
     create_dual_graph,

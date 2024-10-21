@@ -1,6 +1,6 @@
 import numpy as np
 
-from cluster_mesh import ClusterMesh
+from LODtris import ClusterMesh
 
 THRESHOLD = 0.00006
 
