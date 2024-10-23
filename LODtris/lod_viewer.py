@@ -13,6 +13,9 @@ import numpy as np
 from LODtris import LODMesh, LODGraph, Camera, __version__
 
 
+STATS_DELAY = 1.0
+
+
 class LODTrisViewer:
     def __init__(self, models, display_dim=(1920, 1080), profile_meshing=False, force_mesh_build=False,
                 cluster_size_initial=160, cluster_size=128, group_size=8):
@@ -59,12 +62,6 @@ class LODTrisViewer:
             sys.exit(0)
 
     def _init_opengl(self):
-        # ATTENTION: Disables backface culling
-        # This is required for simplicity; not keeping track of normals
-        # glDisable(GL_CULL_FACE)
-        # glDisable(GL_LIGHTING)
-        # glDisable(GL_DEPTH_TEST)
-
         glLoadIdentity()
         glClearColor(0.25, 0.25, 0.25, 1.0)
 
@@ -76,7 +73,7 @@ class LODTrisViewer:
         glEnable(GL_LIGHTING)
         glEnable(GL_LIGHT0)
         glLightfv(GL_LIGHT0, GL_DIFFUSE, [1.0, 1.0, 1.0, 1.0])
-        glLightfv(GL_LIGHT0, GL_POSITION, [0.0, 0.0, 1.0, 0.0])
+        glLightfv(GL_LIGHT0, GL_POSITION, [0.0, 0.0, 10.0, 0.0])
 
         glMatrixMode(GL_PROJECTION)
         gluPerspective(45, self.aspect_ratio, 0.1, 200.0)
@@ -86,7 +83,7 @@ class LODTrisViewer:
         glMatrixMode(GL_MODELVIEW)
         self.camera = Camera()
 
-        glClear(GL_COLOR_BUFFER_BIT)
+        # glClear(GL_COLOR_BUFFER_BIT)
         pygame.display.flip()
 
     def create_mesh_from_model(self, model_name, position=(0, 0, 0)):
@@ -131,12 +128,13 @@ class LODTrisViewer:
                 mesh.shutdown()
 
         self.last_time = time()
+        self.next_stats_time = time() + STATS_DELAY
         self.delta = 0
         textSurface = self.font.render("", True, (255, 255, 255))
         textData = pygame.image.tostring(textSurface, "RGBA", True)
 
         textInstructions = self.font.render(
-            "WASD to move | Mouse to look | Shift to run | E to toggle dynamic LOD | ESC to quit",
+            "WASD (+ Shift) to move | Mouse to look | E to toggle dynamic LOD | ESC to quit",
             True,
             (255, 255, 255), (0, 0, 0, 0)
         )
@@ -159,17 +157,19 @@ class LODTrisViewer:
             self.delta = cur_time - self.last_time
             self.last_time = cur_time
 
-            self._update_view()
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            self._handle_inputs()
 
             for mesh in self.meshes:
                 if self.dynamicLOD:
                     mesh.step_graph_cut()
                 mesh.update()
 
-            # Every 60 frames update the stats text
-            if frames % 60 == 0:
+            # A stats display, updated every second
+            if cur_time > self.next_stats_time:
+                self.next_stats_time = cur_time + STATS_DELAY
                 triangles = sum([m.cluster_mesh.num_vertices // 9 for m in self.meshes])
-                triangles = round(triangles / 1000000, 2)
+                triangles = round(triangles / 1000000, 3)
 
                 fps = 1 / self.delta
                 msg = f"Dynamic LOD: {self.dynamicLOD} | FPS: {round(fps, 1)} | Triangles: {triangles} M"
@@ -214,11 +214,9 @@ class LODTrisViewer:
             pygame.time.delay(1000 // 120)  # Limit 120 FPS
             frames += 1
 
-    def _update_view(self):
+    def _handle_inputs(self):
         keypress = pygame.key.get_pressed()
         mouse_move = pygame.mouse.get_rel()
-
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         # Update the camera position based on keypress and mouse
         movement_speed = 2.0 * self.delta

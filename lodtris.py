@@ -24,7 +24,14 @@ MODELS = {
 }
 
 if __name__ == "__main__":
-    viewer = LODTrisViewer(MODELS, force_mesh_build=False)
+    viewer = LODTrisViewer(
+        MODELS,
+        # force_mesh_build=True,
+        # profile_meshing=True,
+        cluster_size_initial=160,
+        cluster_size=128,
+        group_size=8
+    )
     for z in range(5):
         for x in range(10):
             viewer.create_mesh_from_model("cat", (x * 5, 0, z * 5))

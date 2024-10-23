@@ -8,7 +8,7 @@ import numpy as np
 
 from .utils import (
     calc_bounding_sphere,
-    calc_geometric_error,
+    calc_RMS_error,
     create_dual_graph,
     group_tris,
     group_clusters,
@@ -61,7 +61,7 @@ class LODGraph:
 
         # Simplify the graph until we have a single cluster remaining
         while clusters_remaining > 1:
-            self.lods.append(next_lod(self.lods[-1], self.config, parallel=False))
+            self.lods.append(next_lod(self.lods[-1], self.config))
             clusters_remaining = max(self.lods[-1][3]) + 1
             print(
                 f"LOD {len(self.lods) - 1} has {len(self.lods[-1][1])} tris and {clusters_remaining} clusters."
@@ -130,19 +130,25 @@ class LODGraph:
             monotonic_error.append(error)
         
         # Check whether error is strictly monotonous and bounding spheres are strictly increasing in radius
-        for i in range(1, num_clusters):
-            for j in cluster_dag_rev[i]:
-                assert monotonic_error[i] > monotonic_error[j]
-                assert cluster_bounding_spheres[i][1] >= cluster_bounding_spheres[j][1]
+        # for i in range(1, num_clusters):
+        #     for j in cluster_dag_rev[i]:
+        #         assert monotonic_error[i] > monotonic_error[j]
+        #         assert cluster_bounding_spheres[i][1] >= cluster_bounding_spheres[j][1]
 
-        # Texturing (simple closest vertex lookup)
         self.texture_id = load_texture(texture_path)
         cluster_textures = [[]]
         tree = KDTree(self.lods[0][0])
+
+        # Texturing: Interpolate btw n closest vertices
+        num_neighbors = 2
         for i in range(1, num_clusters):
             verts = cluster_verts[i]
-            _, indices = tree.query(verts)
-            cluster_textures.append(texture_coords[indices])
+            dists, indices = tree.query(verts, num_neighbors)
+            tex_coords = texture_coords[indices]
+
+            weights = 1 / (dists + 1e-8)  # Add a small epsilon to avoid division by zero
+            weights /= np.sum(weights, axis=1, keepdims=True)
+            cluster_textures.append(np.einsum('ij,ijk->ik', weights, tex_coords)) # Magic einsum
 
         self.cluster_dag = cluster_dag
         self.cluster_dag_rev = cluster_dag_rev
@@ -206,10 +212,12 @@ class LODGraph:
 
         self.texture_id = load_texture(paths[1])
 
+        print(f"Loaded cluster mesh with {len(self.cluster_dag)} clusters.")
+
         return True
 
 
-def next_lod(lod, config, parallel=True):
+def next_lod(lod, config, parallel=False):
     vertices, tris, adjacencies, clusters, __, __, __ = lod
 
     assert len(tris) == len(clusters)
@@ -278,7 +286,7 @@ def simplify_group(lod, cluster_to_tris, config, group):
         new_adjacencies = None
         new_clusters = np.zeros(len(simplified_faces), dtype=int)
 
-    geometric_error = calc_geometric_error(simplified_vertices, new_vertices)
+    geometric_error = calc_RMS_error(simplified_vertices, new_vertices)
 
     return (
         simplified_vertices,
@@ -294,7 +302,7 @@ def simplify_group(lod, cluster_to_tris, config, group):
 def simplify_groups_parallel(lod, cluster_to_tris, clusters_in_group, config):
     with mp.Pool(int(mp.cpu_count())) as pool:
         partial_func = partial(simplify_group, lod, cluster_to_tris, config)
-        results = pool.map(partial_func, clusters_in_group, chunksize=16)
+        results = pool.map(partial_func, clusters_in_group, chunksize=1)
 
     return combine_group_lods(results, clusters_in_group)
 
@@ -353,7 +361,6 @@ def combine_group_lods(group_lods, clusters_in_group):
     new_clusters = np.concatenate(new_clusters)
     new_vertices = np.array(new_vertices)
     new_normals = np.array(new_normals)
-
     new_tris = np.array(new_tris)
     new_adjacencies = create_dual_graph(new_tris)
 

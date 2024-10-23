@@ -20,48 +20,36 @@ def load_obj(path):
     vertex_vn_map = {}
 
     with open(path, "r") as f:
-        for line in f.readlines():
-            if line.startswith("v "):
-                vertices.append([float(v) for v in line.split()[1:]])
-            elif line.startswith("vt "):
-                texture_coords.append([float(v) for v in line.split()[1:]])
-            elif line.startswith("vn "):
-                normals.append([float(v) for v in line.split()[1:]])
-            elif line.startswith("f "):
-                elements = line.split()[1:]
-                tri = []
-                for element in elements:
-                    els = element.split("/")
+        lines = f.readlines()
 
-                    t = 0
-                    n = 0
-                    if len(els) == 1:
-                        v = els[0]
-                    elif len(els) == 2:
-                        v, t = els
-                    elif len(els) == 3:
-                        v, t, n = els
+    for line in lines:
+        if line.startswith("v "):
+            vertices.append([float(v) for v in line.split()[1:]])
+        elif line.startswith("vt "):
+            texture_coords.append([float(v) for v in line.split()[1:]])
+        elif line.startswith("vn "):
+            normals.append([float(v) for v in line.split()[1:]])
+        elif line.startswith("f "):
+            elements = line.split()[1:]
+            tri = []
+            for element in elements:
+                els = element.split("/")
 
-                    v = int(v) - 1  # NOTE: -1 because obj indices start at 1
+                v = int(els[0]) - 1  # NOTE: -1 because obj indices start at 1
+                t = int(els[1]) - 1 if len(els) > 1 and els[1] else 0
+                n = int(els[2]) - 1 if len(els) > 2 and els[2] else 0
 
-                    if t:
-                        vertex_vt_map[v] = int(t) - 1
-                    else:
-                        vertex_vt_map[v] = 0
+                vertex_vt_map[v] = t
+                vertex_vn_map[v] = n
 
-                    if n:
-                        vertex_vn_map[v] = int(n) - 1
-                    else:
-                        vertex_vn_map[v] = 0
+                tri.append(v)
 
-                    tri.append(v)
-
-                # Convert quads to tris
-                if len(tri) == 4:
-                    tris.append([tri[0], tri[1], tri[2]])
-                    tris.append([tri[0], tri[2], tri[3]])
-                else:
-                    tris.append(tri)
+            # Convert quads to tris
+            if len(tri) == 4:
+                tris.append([tri[0], tri[1], tri[2]])
+                tris.append([tri[0], tri[2], tri[3]])
+            else:
+                tris.append(tri)
 
     try:
         texture_coords = [
@@ -133,7 +121,7 @@ def create_dual_graph(tris):
 
     adjacency = defaultdict(list)
     for triss in edge_to_tri.values():
-        for tri1, tri2 in combinations(triss, 2):  # iterate over unique pairs
+        for tri1, tri2 in combinations(triss, 2):
             adjacency[tri1].append(tri2)
             adjacency[tri2].append(tri1)
 
@@ -197,26 +185,41 @@ def simplify_mesh_inside(vertices, faces, removal_ratio=0.5):
         simplified_normals,
     ) = mesh_simplifier.getMesh()
 
+    # HANDLE NORMALS
     # Since OpenGL handles normals per vertex, and this simplification method returns normals per face,
     # we use the average of the normals of the faces that share a vertex as the vertex normal
     simplified_vertices_len = len(simplified_vertices)
     avg_normal = np.zeros((simplified_vertices_len, 3))
     avg_count = np.zeros(simplified_vertices_len)
-    for face_i, face in enumerate(simplified_faces):
-        for vertex in face:
-            avg_normal[vertex] += simplified_normals[face_i]
-            avg_count[vertex] += 1
 
-    simplified_normals = np.array(
-        [normal / count for normal, count in zip(avg_normal, avg_count)]
-    )
+    # Flatten the faces array and repeat the normals for each vertex in the face
+    flattened_faces = simplified_faces.flatten()
+    repeated_normals = np.repeat(simplified_normals, 3, axis=0)
+
+    # Accumulate normals and counts using advanced indexing
+    np.add.at(avg_normal, flattened_faces, repeated_normals)
+    np.add.at(avg_count, flattened_faces, 1)
+
+    # Avoid division by zero
+    avg_count[avg_count == 0] = 1
+
+    # Calculate the average normals
+    simplified_normals = avg_normal / avg_count[:, np.newaxis]
+
+    # Calculate the average normals and normalize them
+    simplified_normals = avg_normal / avg_count[:, np.newaxis]
+    norms = np.linalg.norm(simplified_normals, axis=1)
+
+    # Prevent division by zero
+    norms[norms == 0] = 1
+    simplified_normals /= norms[:, np.newaxis]
 
     assert len(simplified_vertices) == len(simplified_normals)
 
     return simplified_vertices, simplified_faces, simplified_normals
 
 
-def calc_geometric_error(verts1, verts2):
+def calc_RMS_error(verts1, verts2):
     tree = KDTree(verts2)
     dists, _ = tree.query(verts1)
     error = np.sum(np.square(dists))

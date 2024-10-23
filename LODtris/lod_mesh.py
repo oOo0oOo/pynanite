@@ -3,7 +3,7 @@ import numpy as np
 from LODtris import ClusterMesh
 
 THRESHOLD = 0.00006
-MARGIN = 0.000025 # Unfortunately we need this hysteresis even though the error and radii are monotonic??
+MARGIN = 0.00002 # Unfortunately we need this hysteresis? The error and radii should be monotonic!
 
 class LODMesh:
     def __init__(self, lod_dag, camera, position):
@@ -27,7 +27,7 @@ class LODMesh:
     def debug_set_max_lod(self):
         self.cluster_mesh.set_clusters(self.lod_dag.cluster_dag[0])
 
-    def step_graph_cut(self, num_steps=1):
+    def step_graph_cut(self, num_steps=3):
         any_change = False
         for __ in range(num_steps):
             to_remove = set()
@@ -42,7 +42,7 @@ class LODMesh:
                 if cluster in to_add:
                     continue
 
-                # Coarsening (decrese lod)
+                # Coarsening (decrease lod)
                 if cluster_error < THRESHOLD - MARGIN:
                     if cluster != self.last_cluster:
                         parents = self.lod_dag.cluster_dag[cluster]
