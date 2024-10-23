@@ -32,6 +32,8 @@ class LODGraph:
         if not force_build:
             if self.load_from_pickle(build_path):
                 return
+            
+        print(f"Baking new LOD graph for {obj_path}")
 
         # Create LOD 0
         vertices, tris, texture_coords, orig_normals = load_obj(obj_path)
@@ -58,21 +60,19 @@ class LODGraph:
         )
 
         # Simplify the graph until we have a single cluster remaining
-        max_lod = 30
-        while clusters_remaining > 1 and max_lod > 0:
+        while clusters_remaining > 1:
             self.lods.append(next_lod(self.lods[-1], self.config, parallel=False))
             clusters_remaining = max(self.lods[-1][3]) + 1
             print(
                 f"LOD {len(self.lods) - 1} has {len(self.lods[-1][1])} tris and {clusters_remaining} clusters."
             )
 
-            max_lod -= 1
-
         # Create the cluster DAG
         cluster_dag = []
         cluster_errors = []
         cluster_verts = [[]]
         cluster_normals = [[]]
+        cluster_tris = [[]]
         num_clusters = 1  # ! Attention, this is dependent on having a single sink node
         for lod in self.lods:
             vertices, tris, __, clusters, graph_adjacencies, geometric, normals = lod
@@ -81,6 +81,7 @@ class LODGraph:
                 cluster_dag.append(adjs + num_clusters)
 
             cluster_errors += geometric
+            cluster_tris.append(tris)
 
             # Collect all vertices for tris
             cluster_map = defaultdict(list)
@@ -99,12 +100,14 @@ class LODGraph:
         cluster_dag.append([])  # Root node (least detailed)
         cluster_errors.append(1.5 * cluster_errors[-1])
 
-        # Create the reverse DAG
+        cluster_dag = [[int(i) for i in j] for j in cluster_dag]
+
+        # Create the reverse DAG (lookup from child to parent)
         cluster_dag_rev = defaultdict(list)
         for i, adjs in enumerate(cluster_dag):
             for adj in adjs:
                 cluster_dag_rev[adj].append(i)
-
+        
         cluster_dag_rev = [cluster_dag_rev[i] for i in range(num_clusters)]
 
         # Enforce monotonic cluster error and monotonic increasing bounding spheres (parent fully contains children)
@@ -116,18 +119,21 @@ class LODGraph:
             children = cluster_dag_rev[i]
             if children:
                 if min(children) != 0:
-                    all_spheres = [sphere]
-                    all_spheres += [cluster_bounding_spheres[j] for j in children]
-                    all_spheres.sort(
-                        key=lambda x: x[1], reverse=True
-                    )  # Sort bounding sphere by radius!
+                    all_spheres = [sphere] + [cluster_bounding_spheres[j] for j in children]
                     sphere = minimum_bounding_sphere(all_spheres)
 
-                    kid_errors = [monotonic_error[j] for j in children]
-                    error = max(error, max(kid_errors))
+                    kid_error = max([monotonic_error[j] for j in children])
+                    if error <= kid_error:
+                        error = kid_error * 1.001 # Cheat using an epsilon
 
             cluster_bounding_spheres.append(sphere)
             monotonic_error.append(error)
+        
+        # Check whether error is strictly monotonous and bounding spheres are strictly increasing in radius
+        for i in range(1, num_clusters):
+            for j in cluster_dag_rev[i]:
+                assert monotonic_error[i] > monotonic_error[j]
+                assert cluster_bounding_spheres[i][1] >= cluster_bounding_spheres[j][1]
 
         # Texturing (simple closest vertex lookup)
         self.texture_id = load_texture(texture_path)
@@ -161,7 +167,7 @@ class LODGraph:
             == len(self.cluster_textures)
         )
         self.save_to_pickle(paths)
-        print(f"Cluster DAG has {len(cluster_dag)} clusters.")
+        print(f"Created cluster DAG with {len(cluster_dag)} clusters.")
 
     def save_to_pickle(self, paths):
         data = [
@@ -181,6 +187,7 @@ class LODGraph:
     def load_from_pickle(self, path):
         try:
             with open(path, "rb") as f:
+                print("Loading baked model from file.")
                 data = pickle.load(f)
         except FileNotFoundError:
             return False

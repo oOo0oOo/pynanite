@@ -28,5 +28,4 @@ if __name__ == "__main__":
     for z in range(5):
         for x in range(10):
             viewer.create_mesh_from_model("cat", (x * 5, 0, z * 5))
-
     viewer.run()

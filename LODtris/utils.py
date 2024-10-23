@@ -230,35 +230,31 @@ def calc_bounding_sphere(vertices):
 
 
 def minimum_bounding_sphere(spheres):
-    S = np.array([np.array(center) for center, _ in spheres])
-    radii = np.array([radius for _, radius in spheres])
-    return welzl(S, radii)
+    if len(spheres) > 1:
+        # Sort by radius to improve performance
+        spheres = sorted(spheres, key=lambda x: x[1], reverse=True)
 
+    # Initialize the bounding sphere to the first sphere
+    center, radius = spheres[0]
 
-def welzl(S, radii, B=None):
-    # Implementation of Welzl's algorithm for minimum bounding sphere
-    if B is None:
-        B = (np.array([0, 0, 0]), 0)
+    for (c, r) in spheres[1:]:
+        dist = np.linalg.norm(c - center)
 
-    if len(S) == 0:
-        return B
+        # If the current sphere is already contained
+        if dist + r <= radius:
+            continue
 
-    idx = S.shape[0] - 1
-    p = S[idx, :]
-    rad = radii[idx]
-    S = np.delete(S, idx, 0)
-    radii = np.delete(radii, idx, 0)
-    Bp = welzl(S, radii, B)
+        # If the bounding sphere is contained within current
+        if dist + radius <= r:
+            center, radius = c, r
+            continue
 
-    if np.linalg.norm(p - Bp[0]) <= max(Bp[1], rad):
-        return Bp
+        # Otherwise, calculate the new bounding sphere
+        new_radius = (dist + radius + r) / 2
+        new_center = center + ((new_radius - radius) / dist) * (c - center)
+        center, radius = new_center, new_radius
 
-    # Otherwise, compute the bounding sphere for Bp union p
-    d = np.linalg.norm(p - Bp[0])
-    center = (Bp[0] + p) / 2 + (rad - Bp[1]) * (p - Bp[0]) / (2 * d)
-    radius = (d + Bp[1] + rad) / 2
-    Bpp = (center, radius)
-    return Bpp
+    return (center, radius)
 
 
 def calculate_normals(vertices, faces):

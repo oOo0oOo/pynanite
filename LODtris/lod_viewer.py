@@ -17,6 +17,8 @@ class LODTrisViewer:
     def __init__(self, models, display_dim=(1920, 1080), profile_meshing=False, force_mesh_build=False,
                 cluster_size_initial=160, cluster_size=128, group_size=8):
         
+        print(f"Starting LODTris {__version__}")
+        
         pygame.init()
         pygame.font.init()
         self.font = pygame.font.SysFont(None, 20)
@@ -134,11 +136,13 @@ class LODTrisViewer:
         textData = pygame.image.tostring(textSurface, "RGBA", True)
 
         textInstructions = self.font.render(
-            "WASD to move | Mouse to look | Shift to run | E to toggle dynamic LOD",
+            "WASD to move | Mouse to look | Shift to run | E to toggle dynamic LOD | ESC to quit",
             True,
             (255, 255, 255), (0, 0, 0, 0)
         )
         textInstructionsData = pygame.image.tostring(textInstructions, "RGBA", True)
+
+        print("Starting viewer loop. Press ESC to quit.")
 
         frames = 0
         while True:
@@ -221,20 +225,17 @@ class LODTrisViewer:
         if keypress[pygame.K_LSHIFT]:
             movement_speed *= 8
 
-        xangle = self.camera.look_angle
+        forward = self.camera.get_forward_vector()
+        right = np.cross(forward, [0, 1, 0])
         dmove = np.array([0, 0, 0], dtype=np.float32)
         if keypress[pygame.K_w]:
-            dmove[0] += -np.sin(xangle) * movement_speed
-            dmove[2] += -np.cos(xangle) * movement_speed
+            dmove += forward * movement_speed
         if keypress[pygame.K_s]:
-            dmove[0] += np.sin(xangle) * movement_speed
-            dmove[2] += np.cos(xangle) * movement_speed
+            dmove -= forward * movement_speed
         if keypress[pygame.K_a]:
-            dmove[0] += np.sin(xangle - np.pi / 2) * movement_speed
-            dmove[2] += np.cos(xangle - np.pi / 2) * movement_speed
+            dmove -= right * movement_speed
         if keypress[pygame.K_d]:
-            dmove[0] += np.sin(xangle + np.pi / 2) * movement_speed
-            dmove[2] += np.cos(xangle + np.pi / 2) * movement_speed
+            dmove += right * movement_speed
 
         dmouse = np.maximum(np.minimum(mouse_move, 80), -80) * self.delta
         dmouse[0] *= 0.05
