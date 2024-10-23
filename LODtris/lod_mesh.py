@@ -73,11 +73,9 @@ class LODMesh:
         dists = np.linalg.norm(self.camera.position - self.spheres[clusters], axis=1)
         dists -= self.lod_dag.cluster_bounding_radii[clusters]
         result = self.lod_dag.cluster_errors[clusters] / dists
-        # result[dists <= 0] = np.inf  # We are inside bounding sphere
-        in_frustum = self.camera.check_spheres_in_frustum(
-            self.spheres[clusters], self.lod_dag.cluster_bounding_radii[clusters]
-        )
-        result[~in_frustum] = 0
+        in_front = self.camera.check_in_front(self.spheres[clusters])
+        result[~in_front] = 0
+        result[dists <= 0] = np.inf  # We are inside bounding sphere
         return result
 
     def update(self):

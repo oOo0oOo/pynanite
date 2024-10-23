@@ -221,7 +221,7 @@ class LODTrisViewer:
         if keypress[pygame.K_LSHIFT]:
             movement_speed *= 8
 
-        xangle = self.camera.look_angle[0]
+        xangle = self.camera.look_angle
         dmove = np.array([0, 0, 0], dtype=np.float32)
         if keypress[pygame.K_w]:
             dmove[0] += -np.sin(xangle) * movement_speed
