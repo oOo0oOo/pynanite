@@ -23,15 +23,10 @@ Note:
 git clone https://github.com/yourusername/LODtris.git
 cd LODtris
 
-# Setup venv
+# Setup venv & install dependencies
 python -m venv venv
 source venv/bin/activate
-
-# Install py dependencies
 pip install -r requirements.txt
-
-# Download and build METIS
-./setup_metis.sh
 
 # Run the app
 python lodtris.py

@@ -44,6 +44,7 @@ class LODTrisViewer:
         if profile_meshing:
             profiler = Profile()
             profiler.enable()
+            start_time = time()
         
         self.models = {k: LODGraph(v, 
                                     force_mesh_build,
@@ -59,6 +60,7 @@ class LODTrisViewer:
                 ["gprof2dot", "-f", "pstats", "profile/profile.prof", "-o", "profile/call_graph.dot"]
             )
             subprocess.run(["dot", "-Tpng", "profile/call_graph.dot", "-o", "profile/call_graph.png"])
+            print(f"Meshing took {time() - start_time:.2f} seconds")
             sys.exit(0)
 
     def _init_opengl(self):

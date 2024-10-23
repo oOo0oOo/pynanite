@@ -3,7 +3,7 @@ from collections import defaultdict
 
 import numpy as np
 import networkx as nx
-import metis
+import pymetis
 import matplotlib.pyplot as plt
 from PIL import Image
 from pyfqmr import Simplify
@@ -148,10 +148,43 @@ def create_dual_graph_clusters(member_adjacencies, clusters_membership):
         tuple([(key, value) for key, value in dual_graph_clusters[i].items()])
         for i in range(num_clusters)
     ]
+
     return dual_graph_clusters
 
 
 def partition_graph(n_clusters, adjacencies):
+    n_cuts, membership = pymetis.part_graph(n_clusters, adjacencies)
+    return np.array(membership)
+
+def partition_graph_weighted(n_clusters, adjacencies):
+    # Convert the adjacency list to xadj, adjncy, and eweights
+    xadj = [0]
+    adjncy = []
+    eweights = []
+    for neighbors in adjacencies:
+        for neighbor, weight in neighbors:
+            adjncy.append(neighbor)
+            eweights.append(weight)
+        xadj.append(len(adjncy))
+
+    n_cuts, membership = pymetis.part_graph(
+        nparts=n_clusters,
+        xadj=xadj,
+        adjncy=adjncy,
+        eweights=eweights
+    )
+    return np.array(membership)
+
+
+def group_clusters(clusters, member_adjacencies, num_clusters):
+    # Group clusters based on graph partitioning (keep as many shared boundary edges as possible)
+    weighted_adjacencies = create_dual_graph_clusters(member_adjacencies, clusters)
+    group_membership = partition_graph_weighted(num_clusters, weighted_adjacencies)
+    return group_membership
+
+
+def partition_graph_metis(n_clusters, adjacencies):
+    # DEPRECATED: Use pymetis instead, its maintained and provides better results
     # Can use weighted or unweighted adjacency list (see metis docs)
     # NOTE: metis.part_graph can possibly hang (never complete)
     adj = metis.adjlist_to_metis(adjacencies)
@@ -165,13 +198,6 @@ def group_tris(tris, cluster_size):
     n_clusters = tris.shape[0] // cluster_size
     clusters = partition_graph(n_clusters, dual_adj)
     return dual_adj, clusters
-
-
-def group_clusters(clusters, member_adjacencies, num_clusters):
-    # Group clusters based on graph partitioning (keep as many shared boundary edges as possible)
-    weighted_adjacencies = create_dual_graph_clusters(member_adjacencies, clusters)
-    group_membership = partition_graph(num_clusters, weighted_adjacencies)
-    return group_membership
 
 
 def simplify_mesh_inside(vertices, faces, removal_ratio=0.5):
