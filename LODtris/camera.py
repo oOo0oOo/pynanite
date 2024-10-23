@@ -7,8 +7,9 @@ class Camera:
         self.position = np.array([0, 3, -4], dtype=np.float32)
         self.look_angle = [3.8, -0.3]
         self.cos_half_fov = np.cos(np.pi / 4)
+        self.forward = self._get_forward_vector()
 
-    def get_forward_vector(self):
+    def _get_forward_vector(self):
         return np.array([
             -np.sin(self.look_angle[0]) * np.cos(self.look_angle[1]),
             np.sin(self.look_angle[1]), 
@@ -18,15 +19,12 @@ class Camera:
         self.position += delta_pos
         self.look_angle -= delta_angle
         glLoadIdentity()
-        forward = self.get_forward_vector()
-        center = self.position + forward
-        gluLookAt(*self.position, *center, 0, 1, 0)
+        self.forward = self._get_forward_vector()
+        gluLookAt(*self.position, *(self.position + self.forward), 0, 1, 0)
         glFlush()
 
     def check_in_front(self, world_positions):
-        forward = self.get_forward_vector()
         directions = world_positions - self.position
-        # directions[:, 1] = 0
         directions /= np.linalg.norm(directions, axis=1, keepdims=True)
-        dot_products = directions @ forward
+        dot_products = np.dot(directions, self.forward)
         return dot_products > self.cos_half_fov

@@ -3,7 +3,7 @@ import numpy as np
 from LODtris import ClusterMesh
 
 THRESHOLD = 0.00006
-MARGIN = 0.00002 # Unfortunately we need this hysteresis? The error and radii should be monotonic!
+MARGIN = 0.00003 # Unfortunately we need this hysteresis? The error and radii should be monotonic!
 
 class LODMesh:
     def __init__(self, lod_dag, camera, position):
@@ -29,24 +29,29 @@ class LODMesh:
 
     def step_graph_cut(self, num_steps=3):
         any_change = False
+        current_clusters = self.cluster_mesh.clusters.copy()
+        errors = {}
+
+        cur_clust = list(current_clusters)
+        errors.update(zip(cur_clust, self.calc_screen_space_error(cur_clust)))
+        prev_error_keys = set(cur_clust)
+
         for __ in range(num_steps):
             to_remove = set()
             to_add = set()
 
-            current_clusters = self.cluster_mesh.clusters
-            errors = self.calc_screen_space_error(list(current_clusters))
-
-            for cluster, cluster_error in zip(current_clusters, errors):
-                if cluster in to_remove:
+            for cluster in list(current_clusters):
+                if cluster in to_remove or cluster in to_add:
                     continue
-                if cluster in to_add:
-                    continue
+                
+                cluster_error = errors[cluster]
 
                 # Coarsening (decrease lod)
                 if cluster_error < THRESHOLD - MARGIN:
                     if cluster != self.last_cluster:
                         parents = self.lod_dag.cluster_dag[cluster]
-                        to_remove.update(self.lod_dag.cluster_dag_rev[parents[0]])
+                        for p in parents:
+                            to_remove.update(self.lod_dag.cluster_dag_rev[p])
                         to_add.update(parents)
                 
                 # Refinement (increase lod)
@@ -54,13 +59,18 @@ class LODMesh:
                     all_kids = self.lod_dag.cluster_dag_rev[cluster]
                     if all_kids[0] != 0:
                         to_add.update(all_kids)
-                        to_remove.update(self.lod_dag.cluster_dag[all_kids[0]])
+                        for k in all_kids:
+                            to_remove.update(self.lod_dag.cluster_dag[k])
 
             if to_remove or to_add:
                 current_clusters.update(to_add)
-                current_clusters -= to_remove
-                any_change = True
+                current_clusters.difference_update(to_remove)
 
+                to_update = list(to_add.difference(prev_error_keys))
+                errors.update(zip(to_update, self.calc_screen_space_error(to_update)))
+                prev_error_keys.update(to_update)
+
+                any_change = True
             else:
                 break
 
@@ -77,7 +87,9 @@ class LODMesh:
         # Culling
         in_front = self.camera.check_in_front(self.spheres[clusters])
         result[~in_front] = 0
-        result[dists <= 0] = np.inf  # We are inside bounding sphere
+
+        # We are inside the bounding sphere
+        result[dists <= 0] = np.inf
 
         return result
 
