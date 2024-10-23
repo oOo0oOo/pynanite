@@ -172,8 +172,15 @@ class LODGraph:
             == len(self.cluster_normals)
             == len(self.cluster_textures)
         )
+        self._post_process()
         self.save_to_pickle(paths)
         print(f"Created cluster DAG with {len(cluster_dag)} clusters.")
+
+    def _post_process(self):
+        # A bit hacky...
+        self.cluster_verts = [np.array(i, dtype=np.float32) for i in self.cluster_verts]
+        self.cluster_normals = [np.array(i, dtype=np.float32).ravel() for i in self.cluster_normals]
+        self.cluster_textures = [np.array(i, dtype=np.float32).ravel() for i in self.cluster_textures]
 
     def save_to_pickle(self, paths):
         data = [
@@ -211,6 +218,8 @@ class LODGraph:
         ) = data
 
         self.texture_id = load_texture(paths[1])
+
+        self._post_process()
 
         print(f"Loaded cluster mesh with {len(self.cluster_dag)} clusters.")
 

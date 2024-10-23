@@ -18,7 +18,7 @@ class LODMesh:
             lod_dag.cluster_normals,
         )
 
-        self.spheres = self.lod_dag.cluster_bounding_centers.copy() + position
+        self.spheres = self.lod_dag.cluster_bounding_centers + position
         self.last_cluster = len(self.lod_dag.cluster_verts) - 1
 
     def debug_set_min_lod(self):

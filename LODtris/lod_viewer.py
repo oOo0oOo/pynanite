@@ -88,10 +88,23 @@ class LODTrisViewer:
         # glClear(GL_COLOR_BUFFER_BIT)
         pygame.display.flip()
 
-    def create_mesh_from_model(self, model_name, position=(0, 0, 0)):
+    def create_mesh_from_model(self, model_name, position=(0, 0, 0), profile=False):
+        if profile:
+            profiler = Profile()
+            profiler.enable()
+
         position = np.array(position)
         mesh = LODMesh(self.models[model_name], self.camera, position)
         self.meshes.append(mesh)
+
+        if profile:
+            profiler.disable()
+            profiler.dump_stats("profile/profile.prof")
+            subprocess.run(
+                ["gprof2dot", "-f", "pstats", "profile/profile.prof", "-o", "profile/call_graph.dot"]
+            )
+            subprocess.run(["dot", "-Tpng", "profile/call_graph.dot", "-o", "profile/call_graph.png"])
+            sys.exit(0)
 
     def run(self, profile=False):
         pygame.mouse.set_visible(False)

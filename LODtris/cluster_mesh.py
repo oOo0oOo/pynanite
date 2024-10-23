@@ -8,25 +8,18 @@ class ClusterMesh:
     """Drawing a mesh with multiple clusters made up of tris."""
 
     def __init__(
-        self, position, cluster_verts, cluster_textures, texture_id, cluster_normals
+        self, position, cluster_verts, cluster_textures_ravelled, texture_id, cluster_normals_ravelled
     ):
         self.position = position
         self.texture_id = texture_id
-        self.cluster_verts = [
-            np.float32((verts + position).ravel()) for verts in cluster_verts[1:]
-        ]
-        self.cluster_verts.insert(0, [])
+        self.cluster_textures = cluster_textures_ravelled
+        self.cluster_normals = cluster_normals_ravelled
 
-        self.cluster_textures = [
-            np.float32(texcoords.ravel()) for texcoords in cluster_textures[1:]
-        ]
-        self.cluster_textures.insert(0, [])
-
-        self.cluster_normals = [
-            np.float32(normals.ravel()) for normals in cluster_normals[1:]
-        ]
-        self.cluster_normals.insert(0, [])
-
+        self.cluster_verts = [None]
+        position = np.array(position, dtype=np.float32)
+        for i in range(1, len(cluster_verts)):
+            self.cluster_verts.append((cluster_verts[i] + position).ravel())
+        
         self.vertex_vbo = None
         self.tex_vbo = None
         self.norm_vbo = None

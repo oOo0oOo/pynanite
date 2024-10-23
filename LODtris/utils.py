@@ -287,6 +287,7 @@ def minimum_bounding_sphere(spheres):
 
 
 def calculate_normals(vertices, faces):
+    # DEPRECATED: Not used in the current implementation
     # Calculate the vectors representing two sides of each triangle
     v1 = vertices[faces[:, 1] - 1] - vertices[faces[:, 0] - 1]
     v2 = vertices[faces[:, 2] - 1] - vertices[faces[:, 0] - 1]
