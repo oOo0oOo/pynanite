@@ -5,12 +5,31 @@ from cProfile import Profile
 from time import time
 
 import pygame
-from pygame.locals import *
-from OpenGL.GL import *
-from OpenGL.GLU import *
+from pygame.locals import DOUBLEBUF, OPENGL
 import numpy as np
+from OpenGL.GLU import gluPerspective
+from OpenGL.GL import (
+    glLoadIdentity, glClearColor, glEnable, glLightfv,
+    glMatrixMode, glClear, glPushMatrix, glPopMatrix,
+    glOrtho, glRasterPos2i, glDrawPixels, glReadBuffer, glReadPixels,
+    
+    GL_LIGHTING, GL_LIGHT0, GL_DIFFUSE, GL_POSITION,
+    GL_PROJECTION, GL_DEPTH_TEST, GL_CULL_FACE,
+    GL_MODELVIEW, GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT,
+    GL_RGB, GL_RGBA, GL_UNSIGNED_BYTE, GL_FRONT
+)
+
+
+# # Set the METIS_DLL environment variable to the current path
+# Required if we want to use "import metis"
+# current_path = os.path.abspath(os.path.dirname(__file__))
+# os.environ["METIS_DLL"] = os.path.join(current_path, "libmetis.so")
+
 
 from LODtris import LODMesh, LODGraph, Camera, __version__
+
+
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 
 
 STATS_DELAY = 1.0

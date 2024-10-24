@@ -1,7 +1,11 @@
-from OpenGL.GL import *
-
-from OpenGL.arrays import vbo
 import numpy as np
+from OpenGL.arrays import vbo
+from OpenGL.GL import (
+    glEnable, glDisable, glBindTexture, glEnableClientState, glDisableClientState,
+    glTexCoordPointer, glNormalPointer, glVertexPointer, glDrawArrays, 
+    GL_TEXTURE_2D, GL_FLOAT, GL_VERTEX_ARRAY, GL_TEXTURE_COORD_ARRAY, 
+    GL_NORMAL_ARRAY, GL_TRIANGLES
+)
 
 
 class ClusterMesh:

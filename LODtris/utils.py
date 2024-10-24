@@ -2,13 +2,16 @@ from itertools import combinations
 from collections import defaultdict
 
 import numpy as np
-import networkx as nx
 import pymetis
-import matplotlib.pyplot as plt
 from PIL import Image
 from pyfqmr import Simplify
-from OpenGL.GL import *
 from scipy.spatial import KDTree
+
+from OpenGL.GL import (
+    glGenTextures, glBindTexture, glTexParameterf, glTexImage2D, 
+    GL_TEXTURE_2D, GL_LINEAR, GL_RGB, GL_UNSIGNED_BYTE,
+    GL_TEXTURE_MAG_FILTER, GL_TEXTURE_MIN_FILTER
+)
 
 
 def load_obj(path):
@@ -64,7 +67,7 @@ def load_obj(path):
         normals = [normals[vertex_vn_map[i]] for i in range(len(vertices))]
     except IndexError:
         print("Invalid normals")
-        normals = [[0, 0, 0] for _ in range(len(vertices))]
+        normals = [[0, 1, 0] for _ in range(len(vertices))]
 
     normals = np.array(normals, dtype=np.float32)
 
@@ -311,6 +314,8 @@ def calculate_normals(vertices, faces):
 
 
 def visualize_adjacencies(adjacencies):
+    import networkx as nx
+    import matplotlib.pyplot as plt
     G = nx.Graph()
     for i, adj in enumerate(adjacencies):
         for j in adj:
@@ -325,6 +330,8 @@ def visualize_adjacencies(adjacencies):
 
 
 def visualize_adjacency_dict(adjacencies, label=True):
+    import networkx as nx
+    import matplotlib.pyplot as plt
     G = nx.Graph()
     for i, adj in adjacencies.items():
         for j in adj:

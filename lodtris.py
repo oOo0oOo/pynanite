@@ -1,15 +1,5 @@
 import os
-
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
-
-# # Set the METIS_DLL environment variable to the current path
-# Required if we want to use "import metis"
-# current_path = os.path.abspath(os.path.dirname(__file__))
-# os.environ["METIS_DLL"] = os.path.join(current_path, "libmetis.so")
-
-
 from LODtris.lod_viewer import LODTrisViewer
-
 
 # Example model: Cat (Thanks to Alex Meier!)
 if not os.path.exists("data/cat"):
@@ -17,13 +7,20 @@ if not os.path.exists("data/cat"):
     with zipfile.ZipFile("data/cat.zip", "r") as zip_ref:
         zip_ref.extractall("data")
 
+
 MODELS = {
     "cat": [
         "data/cat/cat.obj",
         "data/cat/cat.jpg",
         "data/build/cat.pickle",
     ],
+    # "flower": [
+    #     "data/Flower.obj/Flower.obj",
+    #     "data/Flower.obj/Flower_0.jpg",
+    #     "data/build/flower.pickle",
+    # ],
 }
+
 
 if __name__ == "__main__":
     viewer = LODTrisViewer(
