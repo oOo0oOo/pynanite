@@ -33,7 +33,7 @@ class LODGraph:
             if self.load_from_pickle(build_path):
                 return
             
-        print(f"Baking new LOD graph for {obj_path}")
+        print(f"Baking new LOD graph ({obj_path}). This will take a while...")
 
         # Create LOD 0
         vertices, tris, texture_coords, orig_normals = load_obj(obj_path)
@@ -174,7 +174,7 @@ class LODGraph:
         )
         self._post_process()
         self.save_to_pickle(paths)
-        print(f"Created cluster DAG with {len(cluster_dag)} clusters.")
+        print(f"Baked cluster mesh with {len(cluster_dag)} clusters.")
 
     def _post_process(self):
         # A bit hacky...

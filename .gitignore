@@ -1,7 +1,6 @@
 __pycache__/
 venv/
 profile/
-screenshots/
 tmp/
 
 data/*

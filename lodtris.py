@@ -13,12 +13,7 @@ MODELS = {
         "data/cat/cat.obj",
         "data/cat/cat.jpg",
         "data/build/cat.pickle",
-    ],
-    # "flower": [
-    #     "data/Flower.obj/Flower.obj",
-    #     "data/Flower.obj/Flower_0.jpg",
-    #     "data/build/flower.pickle",
-    # ],
+    ]
 }
 
 

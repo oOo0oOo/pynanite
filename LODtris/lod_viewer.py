@@ -4,6 +4,8 @@ import subprocess
 from cProfile import Profile
 from time import time
 
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+
 import pygame
 from pygame.locals import DOUBLEBUF, OPENGL
 import numpy as np
@@ -12,7 +14,6 @@ from OpenGL.GL import (
     glLoadIdentity, glClearColor, glEnable, glLightfv,
     glMatrixMode, glClear, glPushMatrix, glPopMatrix,
     glOrtho, glRasterPos2i, glDrawPixels, glReadBuffer, glReadPixels,
-    
     GL_LIGHTING, GL_LIGHT0, GL_DIFFUSE, GL_POSITION,
     GL_PROJECTION, GL_DEPTH_TEST, GL_CULL_FACE,
     GL_MODELVIEW, GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT,
@@ -29,7 +30,6 @@ from OpenGL.GL import (
 from LODtris import LODMesh, LODGraph, Camera, __version__
 
 
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 
 
 STATS_DELAY = 1.0
