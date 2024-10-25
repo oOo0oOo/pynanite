@@ -1,4 +1,4 @@
-# LODtris
+# pynanite
 
 Simplified implementation of automatic level of detail for meshes (wannabe Nanite) in Python.
 
@@ -18,9 +18,10 @@ Turning off the dynamic LOD (press E) and then moving to the marked cat (arrow p
 On my machine™
 
 - Baking cat model (512986 tris) -> 17 LODs with 7442 clusters in total: 36s
+- Startup: Loading baked model (0.4s) + placing 50 cats (2.3s)
 - Viewing: No LOD updates: 110+ FPS
 - Viewing: With LOD updates, static camera: 60+ FPS (due to annoying, non-visible LOD flickering)
-- Viewing: With LOD updates while moving: 10-30 FPS
+- Viewing: With LOD updates & camera movement: 10-50 FPS
 
 
 ## Requirements
@@ -47,9 +48,9 @@ I didn't check any other implementation, so this version might be odd?
 ### What is implemented
 
 - Graph partitioning-based mesh LODs.
-- Textures (still have nasty seams) and normals.
+- Textures (badly done, still have nasty seams) and normals.
 - Flying camera and frustum culling.
-- LOD switching based on camera distance and mesh error (RMS). Error metric is the weakest part of this implementation...
+- LOD switching based on camera distance and mesh error (RMS).
 - Everything is single-threaded.
 - A beautiful cat model that has seen some things (thx Lexx).
 
@@ -65,7 +66,7 @@ This proof of concept is very far from the UE5 implementation:
 - Only very basic culling
 - Only static meshes, all verts are positioned and fixed at scene initialization
 
-BTW this is not a TODO list, just mentioning what is missing.
+BTW this is not a TODO list, just mentioning some of the missing features.
 
 
 ## Setup / Usage
@@ -75,8 +76,8 @@ Note:
 
 ```sh
 # Clone the repo
-git clone https://github.com/oOo0oOo/LODtris.git
-cd LODtris
+git clone https://github.com/oOo0oOo/pynanite.git
+cd pynanite
 
 # Setup venv & install dependencies
 python3 -m venv venv
@@ -84,7 +85,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Run the demo
-python lodtris.py
+python demo.py
 ```
 
 ### Controls

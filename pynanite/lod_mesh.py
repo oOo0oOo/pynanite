@@ -1,6 +1,6 @@
 import numpy as np
 
-from LODtris import ClusterMesh
+from .cluster_mesh import ClusterMesh
 
 THRESHOLD = 0.00006
 MARGIN = 0.00003 # Unfortunately we need this hysteresis? The error and radii should be monotonic!

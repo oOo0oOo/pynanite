@@ -6,9 +6,9 @@ from time import time
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 
+import numpy as np
 import pygame
 from pygame.locals import DOUBLEBUF, OPENGL
-import numpy as np
 from OpenGL.GLU import gluPerspective
 from OpenGL.GL import (
     glLoadIdentity, glClearColor, glEnable, glLightfv,
@@ -27,9 +27,7 @@ from OpenGL.GL import (
 # os.environ["METIS_DLL"] = os.path.join(current_path, "libmetis.so")
 
 
-from LODtris import LODMesh, LODGraph, Camera, __version__
-
-
+from pynanite import LODMesh, LODGraph, Camera, __version__
 
 
 STATS_DELAY = 1.0
@@ -39,7 +37,7 @@ class LODTrisViewer:
     def __init__(self, models, display_dim=(1920, 1080), profile_meshing=False, force_mesh_build=False,
                 cluster_size_initial=160, cluster_size=128, group_size=8):
         
-        print(f"Starting LODTris {__version__}")
+        print(f"Starting pynanite {__version__}")
         
         pygame.init()
         pygame.font.init()
@@ -48,7 +46,7 @@ class LODTrisViewer:
         self.display_dim = display_dim
         self.aspect_ratio = display_dim[0] / display_dim[1]
         self.display = pygame.display.set_mode(display_dim, DOUBLEBUF | OPENGL)
-        pygame.display.set_caption("LODTris " + __version__)
+        pygame.display.set_caption("pynanite " + __version__)
 
         if not os.path.exists("data/build"):
             os.makedirs("data/build")

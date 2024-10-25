@@ -1,5 +1,5 @@
 import os
-from LODtris.lod_viewer import LODTrisViewer
+from pynanite.lod_viewer import LODTrisViewer
 
 # Example model: Cat (Thanks to Alex Meier!)
 if not os.path.exists("data/cat"):
@@ -27,6 +27,7 @@ if __name__ == "__main__":
         group_size=8
     )
 
+    # Place some cats in the scene
     for z in range(5):
         for x in range(10):
             viewer.create_mesh_from_model("cat", (x * 5, 0, z * 5))
